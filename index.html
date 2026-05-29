@@ -1,0 +1,1988 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>제주 대기오염 변화 분석 대시보드 2022–2024</title>
+  <style>
+    :root {
+      --pm10: #ef4444;
+      --pm25: #6366f1;
+      --o3: #10b981;
+      --no2: #f97316;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --soft: #f1f5f9;
+      --blue: #2563eb;
+      --amber: #f59e0b;
+      --green: #10b981;
+      --red: #ef4444;
+      --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+      --radius: 24px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR",
+        "Apple SD Gothic Neo", "Malgun Gothic", Arial, sans-serif;
+      background:
+        radial-gradient(circle at 12% 0%, rgba(37, 99, 235, 0.12), transparent 32rem),
+        radial-gradient(circle at 92% 7%, rgba(16, 185, 129, 0.12), transparent 30rem),
+        var(--bg);
+      color: var(--text);
+    }
+
+    a { color: inherit; }
+
+    .app {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.7fr);
+      gap: 22px;
+      align-items: stretch;
+      margin-bottom: 18px;
+    }
+
+    .hero-main,
+    .filter-panel,
+    .card,
+    .chart-card,
+    .insight-panel,
+    .note-card {
+      border: 1px solid rgba(226, 232, 240, 0.95);
+      background: rgba(255,255,255,0.92);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+    }
+
+    .hero-main {
+      padding: 28px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-main::after {
+      content: "";
+      position: absolute;
+      right: -88px;
+      top: -88px;
+      width: 260px;
+      height: 260px;
+      background: conic-gradient(from 140deg, var(--pm10), var(--pm25), var(--o3), var(--pm10));
+      opacity: 0.12;
+      border-radius: 999px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--blue);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--green);
+      box-shadow: 0 0 0 6px rgba(16,185,129,0.12);
+    }
+
+    h1 {
+      margin: 10px 0 8px;
+      font-size: clamp(28px, 4vw, 46px);
+      line-height: 1.08;
+      letter-spacing: -0.045em;
+    }
+
+    .subtitle {
+      max-width: 830px;
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 15px;
+    }
+
+    .hero-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 12px;
+      border-radius: 999px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      color: #334155;
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    .tag .mini-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 99px;
+      display: inline-block;
+    }
+
+    .filter-panel {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .filter-panel h2 {
+      margin: 0 0 4px;
+      font-size: 16px;
+    }
+
+    .filter-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    select, button {
+      font: inherit;
+    }
+
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: white;
+      color: var(--text);
+      outline: none;
+      font-weight: 700;
+      transition: 0.15s ease;
+    }
+
+    select:focus {
+      border-color: #93c5fd;
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10);
+    }
+
+    .print-btn {
+      border: 0;
+      cursor: pointer;
+      border-radius: 16px;
+      padding: 12px 14px;
+      background: linear-gradient(135deg, #2563eb, #0f172a);
+      color: white;
+      font-weight: 900;
+      box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22);
+    }
+
+    .data-note {
+      padding: 12px;
+      border-radius: 16px;
+      background: #fff7ed;
+      color: #9a3412;
+      line-height: 1.5;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 18px 0;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      padding: 10px 0;
+      backdrop-filter: blur(10px);
+    }
+
+    .tab-btn {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.9);
+      color: #334155;
+      border-radius: 999px;
+      padding: 10px 15px;
+      font-weight: 900;
+      cursor: pointer;
+      transition: 0.16s ease;
+    }
+
+    .tab-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px rgba(15,23,42,0.06);
+    }
+
+    .tab-btn.active {
+      color: white;
+      border-color: transparent;
+      background: #0f172a;
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .kpi-card {
+      position: relative;
+      overflow: hidden;
+      padding: 20px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.95);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      min-height: 154px;
+    }
+
+    .kpi-card::after {
+      content: "";
+      position: absolute;
+      right: -38px;
+      bottom: -44px;
+      width: 130px;
+      height: 130px;
+      background: var(--accent, #94a3b8);
+      opacity: 0.10;
+      border-radius: 999px;
+    }
+
+    .kpi-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .kpi-title {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .kpi-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 14px;
+      background: color-mix(in srgb, var(--accent, #94a3b8) 13%, white);
+      color: var(--accent, #64748b);
+      display: grid;
+      place-items: center;
+      font-weight: 1000;
+      border: 1px solid color-mix(in srgb, var(--accent, #94a3b8) 18%, white);
+    }
+
+    .kpi-value {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .kpi-value strong {
+      font-size: clamp(26px, 3vw, 36px);
+      line-height: 1;
+      letter-spacing: -0.035em;
+    }
+
+    .kpi-value span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      padding-bottom: 4px;
+    }
+
+    .kpi-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 16px;
+      gap: 10px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .delta {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border-radius: 999px;
+      padding: 6px 9px;
+      font-size: 12px;
+      font-weight: 1000;
+      white-space: nowrap;
+    }
+
+    .delta.good { color: #047857; background: #ecfdf5; }
+    .delta.bad { color: #b91c1c; background: #fef2f2; }
+    .delta.neutral { color: #475569; background: #f1f5f9; }
+
+    .tiny-muted {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .story-strip {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      gap: 14px;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .story-card {
+      min-height: 112px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, #fff, #f8fafc);
+      border-radius: 22px;
+      padding: 16px;
+      box-shadow: 0 12px 30px rgba(15,23,42,0.05);
+    }
+
+    .story-year {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 1000;
+    }
+
+    .story-value {
+      margin: 8px 0 4px;
+      font-size: 28px;
+      font-weight: 1000;
+      letter-spacing: -0.035em;
+    }
+
+    .story-caption {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      font-weight: 700;
+    }
+
+    .arrow {
+      font-size: 26px;
+      color: #94a3b8;
+      font-weight: 1000;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(300px, 0.92fr);
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .sub-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.95fr);
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .two-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .three-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .chart-card, .insight-panel, .note-card, .card {
+      padding: 20px;
+    }
+
+    .card-title-row {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    h2, h3 {
+      letter-spacing: -0.025em;
+    }
+
+    .card-title-row h2,
+    .chart-card h2,
+    .insight-panel h2,
+    .note-card h2,
+    .card h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .card-title-row p,
+    .chart-card > p,
+    .insight-panel > p,
+    .note-card > p,
+    .card > p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .chart-box {
+      width: 100%;
+      min-height: 330px;
+    }
+
+    .chart-box svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .svg-axis {
+      fill: #64748b;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .svg-grid {
+      stroke: #e2e8f0;
+      stroke-width: 1;
+      stroke-dasharray: 4 4;
+    }
+
+    .svg-label {
+      fill: #0f172a;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .insight-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .insight {
+      border-radius: 18px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      line-height: 1.55;
+    }
+
+    .insight b {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .insight.pm10 { background: #fef2f2; border-color: #fee2e2; }
+    .insight.pm10 b { color: var(--pm10); }
+    .insight.pm25 { background: #eef2ff; border-color: #e0e7ff; }
+    .insight.pm25 b { color: var(--pm25); }
+    .insight.o3 { background: #ecfdf5; border-color: #d1fae5; }
+    .insight.o3 b { color: var(--o3); }
+    .insight.warn { background: #fffbeb; border-color: #fde68a; }
+    .insight.warn b { color: #b45309; }
+
+    .heatmap-wrap {
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .heatmap {
+      display: grid;
+      grid-template-columns: 96px repeat(3, minmax(74px, 1fr));
+      gap: 8px;
+      min-width: 380px;
+      align-items: stretch;
+    }
+
+    .heat-head {
+      color: var(--muted);
+      font-weight: 1000;
+      font-size: 12px;
+      text-align: center;
+      padding: 8px 4px;
+    }
+
+    .heat-station {
+      font-weight: 900;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      color: #334155;
+    }
+
+    .heat-cell {
+      position: relative;
+      min-height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      font-weight: 1000;
+      font-size: 12px;
+      border: 1px solid rgba(255,255,255,0.75);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.28);
+    }
+
+    .heat-cell small {
+      display: block;
+      opacity: 0.75;
+      font-weight: 800;
+    }
+
+    .footnote {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: #f8fafc;
+      border: 1px dashed #cbd5e1;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+      font-weight: 700;
+    }
+
+    .legend {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .gradient-legend {
+      width: 120px;
+      height: 9px;
+      border-radius: 99px;
+      background: linear-gradient(90deg, #10b981, #f59e0b, #ef4444);
+    }
+
+    .map-wrap {
+      min-height: 420px;
+    }
+
+    .map-wrap svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .region-bars {
+      display: grid;
+      gap: 13px;
+      margin-top: 16px;
+    }
+
+    .region-bar-row {
+      display: grid;
+      grid-template-columns: 70px 1fr 58px;
+      gap: 10px;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .track {
+      height: 13px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      overflow: hidden;
+    }
+
+    .fill {
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #f59e0b, #ef4444);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th, td {
+      padding: 11px 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      background: #f8fafc;
+    }
+
+    tbody tr:hover {
+      background: #f8fafc;
+    }
+
+    .rank-pill {
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      min-width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      font-weight: 1000;
+    }
+
+    .rank-pill.top {
+      color: white;
+      background: linear-gradient(135deg, #f59e0b, #ef4444);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 9px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      color: #334155;
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .badge.red { background: #fef2f2; color: #b91c1c; }
+    .badge.green { background: #ecfdf5; color: #047857; }
+    .badge.blue { background: #eff6ff; color: #1d4ed8; }
+    .badge.orange { background: #fff7ed; color: #c2410c; }
+    .badge.gray { background: #f1f5f9; color: #475569; }
+
+    .scatter-box svg, .mini-line svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .small-multiples {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .mini-line {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 12px;
+      background: #fff;
+    }
+
+    .mini-line h3 {
+      margin: 0 0 8px;
+      font-size: 14px;
+    }
+
+    .locked {
+      min-height: 164px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      border-radius: 18px;
+      background: repeating-linear-gradient(
+        135deg,
+        #fff7ed,
+        #fff7ed 12px,
+        #ffedd5 12px,
+        #ffedd5 24px
+      );
+      color: #9a3412;
+      padding: 18px;
+      font-weight: 900;
+      line-height: 1.55;
+    }
+
+    .corr-grid {
+      display: grid;
+      grid-template-columns: 74px repeat(4, 1fr);
+      gap: 8px;
+      margin-top: 14px;
+      min-width: 480px;
+    }
+
+    .corr-wrap { overflow-x: auto; }
+
+    .corr-head, .corr-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 1000;
+      display: grid;
+      place-items: center;
+      min-height: 42px;
+    }
+
+    .corr-label {
+      justify-content: start;
+      padding-left: 2px;
+    }
+
+    .corr-cell {
+      min-height: 42px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 1000;
+      border: 1px solid rgba(255,255,255,0.75);
+    }
+
+    .policy-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .policy-card {
+      border-radius: var(--radius);
+      background: #fff;
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      padding: 20px;
+      min-height: 260px;
+    }
+
+    .policy-card h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+
+    .policy-card ul {
+      margin: 0;
+      padding-left: 19px;
+      color: #475569;
+      line-height: 1.8;
+      font-weight: 700;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .timeline-item {
+      display: grid;
+      grid-template-columns: 82px 1fr;
+      gap: 12px;
+      align-items: start;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #f8fafc;
+    }
+
+    .timeline-year {
+      font-weight: 1000;
+      color: #0f172a;
+    }
+
+    .timeline-item p {
+      margin: 0;
+      color: #475569;
+      line-height: 1.55;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .schema-table {
+      overflow-x: auto;
+      margin-top: 12px;
+    }
+
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    pre {
+      margin: 12px 0 0;
+      padding: 14px;
+      border-radius: 16px;
+      background: #0f172a;
+      color: #e2e8f0;
+      overflow-x: auto;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .empty-state {
+      min-height: 260px;
+      border: 1px dashed #cbd5e1;
+      border-radius: 20px;
+      background: #f8fafc;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      color: var(--muted);
+      padding: 22px;
+      font-weight: 800;
+      line-height: 1.6;
+    }
+
+    .footer {
+      color: var(--muted);
+      text-align: center;
+      font-size: 12px;
+      line-height: 1.6;
+      padding: 26px 0 8px;
+      font-weight: 700;
+    }
+
+    @media (max-width: 1100px) {
+      .hero,
+      .main-grid,
+      .sub-grid,
+      .policy-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .kpi-grid,
+      .three-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .story-strip {
+        grid-template-columns: 1fr;
+      }
+
+      .arrow { display: none; }
+    }
+
+    @media (max-width: 720px) {
+      .app { padding: 16px; }
+      .filter-grid,
+      .kpi-grid,
+      .two-grid,
+      .three-grid,
+      .small-multiples {
+        grid-template-columns: 1fr;
+      }
+
+      .tabs {
+        position: static;
+      }
+
+      .tab-btn {
+        flex: 1 1 auto;
+      }
+
+      .chart-card, .insight-panel, .note-card, .card, .hero-main, .filter-panel {
+        border-radius: 20px;
+        padding: 16px;
+      }
+    }
+
+    @media print {
+      body { background: white; }
+      .filter-panel, .tabs, .print-btn { display: none !important; }
+      .app { max-width: none; padding: 0; }
+      .tab-panel { display: block !important; page-break-after: always; }
+      .card, .chart-card, .insight-panel, .note-card, .kpi-card, .hero-main, .policy-card {
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="hero">
+      <section class="hero-main">
+        <div class="eyebrow"><span class="status-dot"></span> Jeju Air Quality Panel Dashboard</div>
+        <h1>제주 대기오염 변화 분석 대시보드 2022–2024</h1>
+        <p class="subtitle">
+          PM10은 2023년 피크 이후 2024년에 뚜렷하게 개선되었고, PM2.5는 3년 연속 감소했습니다.
+          O₃는 완만한 감소세이나 NO₂와 기상 조건을 함께 연결해야 진단 정확도가 높아집니다.
+        </p>
+        <div class="hero-tags" aria-label="핵심 메시지">
+          <span class="tag"><span class="mini-dot" style="background:var(--pm10)"></span> PM10 2024년 -17.1%</span>
+          <span class="tag"><span class="mini-dot" style="background:var(--pm25)"></span> PM2.5 안정적 감소</span>
+          <span class="tag"><span class="mini-dot" style="background:var(--o3)"></span> O₃ 해석은 NO₂ 연계 필요</span>
+          <span class="tag"><span class="mini-dot" style="background:var(--amber)"></span> 고농도: 노형로·애월읍·이도동·연동</span>
+        </div>
+      </section>
+
+      <aside class="filter-panel" aria-label="대시보드 필터">
+        <h2>필터 / 보기 옵션</h2>
+        <div class="filter-grid">
+          <label>
+            연도
+            <select id="yearFilter">
+              <option value="all">2022–2024 전체</option>
+              <option value="2022">2022</option>
+              <option value="2023">2023</option>
+              <option value="2024">2024</option>
+            </select>
+          </label>
+
+          <label>
+            오염물질
+            <select id="pollutantFilter">
+              <option value="PM10">PM10</option>
+              <option value="PM25">PM2.5</option>
+              <option value="O3">O₃</option>
+              <option value="NO2" disabled>NO₂ 데이터 연결 필요</option>
+            </select>
+          </label>
+
+          <label>
+            측정소
+            <select id="stationFilter">
+              <option value="all">전체 측정소</option>
+            </select>
+          </label>
+
+          <label>
+            지역유형
+            <select id="regionFilter">
+              <option value="all">전체 유형</option>
+              <option value="도심">도심</option>
+              <option value="외곽">외곽</option>
+              <option value="관광">관광</option>
+              <option value="해안">해안</option>
+            </select>
+          </label>
+        </div>
+
+        <button class="print-btn" type="button" onclick="window.print()">대시보드 PDF/인쇄</button>
+        <div class="data-note">
+          현재 측정소별 PM10은 8개 지점 기준입니다. 12개 지점 원자료와 NO₂ 값이 연결되면 같은 구조로 자동 확장할 수 있습니다.
+        </div>
+      </aside>
+    </header>
+
+    <nav class="tabs" aria-label="페이지 탭">
+      <button class="tab-btn active" data-tab="overview">Executive Overview</button>
+      <button class="tab-btn" data-tab="regional">지역 비교</button>
+      <button class="tab-btn" data-tab="diagnosis">오염물질 진단</button>
+      <button class="tab-btn" data-tab="policy">정책 / 환경 시사점</button>
+      <button class="tab-btn" data-tab="bi">BI 설계 요약</button>
+    </nav>
+
+    <main>
+      <section id="overview" class="tab-panel active">
+        <div id="kpiGrid" class="kpi-grid"></div>
+
+        <section class="story-strip" aria-label="PM10 변화 인포그래픽">
+          <div class="story-card">
+            <div class="story-year">2022 기준</div>
+            <div class="story-value" style="color:#334155">28.33</div>
+            <div class="story-caption">PM10 평균, ㎍/㎥. 코로나 이후 활동량 회복 구간의 기준점.</div>
+          </div>
+          <div class="arrow">→</div>
+          <div class="story-card">
+            <div class="story-year">2023 피크</div>
+            <div class="story-value" style="color:var(--pm10)">31.75</div>
+            <div class="story-caption">전년 대비 +12.1%. 황사·외부 유입·교통·기상 조건을 함께 점검.</div>
+          </div>
+          <div class="arrow">→</div>
+          <div class="story-card">
+            <div class="story-year">2024 개선</div>
+            <div class="story-value" style="color:var(--green)">26.33</div>
+            <div class="story-caption">전년 대비 -17.1%. 최근 3년 중 가장 낮은 PM10 평균.</div>
+          </div>
+        </section>
+
+        <section class="main-grid">
+          <article class="chart-card">
+            <div class="card-title-row">
+              <div>
+                <h2 id="lineChartTitle">연도별 평균 추이</h2>
+                <p id="lineChartDesc">선택 오염물질의 2022–2024 평균 농도 변화</p>
+              </div>
+              <span id="selectedPollutantBadge" class="badge blue">PM10</span>
+            </div>
+            <div id="lineChart" class="chart-box"></div>
+          </article>
+
+          <aside class="insight-panel">
+            <h2>핵심 인사이트</h2>
+            <p>현재 데이터 기준 자동 요약</p>
+            <div id="insightList" class="insight-list"></div>
+          </aside>
+        </section>
+
+        <section class="sub-grid">
+          <article class="chart-card">
+            <div class="card-title-row">
+              <div>
+                <h2>측정소별 평균 PM10 순위</h2>
+                <p>2022–2024 평균 기준, 단위 ㎍/㎥. 상위 3개 측정소를 강조했습니다.</p>
+              </div>
+              <span id="stationCountBadge" class="badge orange">8개 지점</span>
+            </div>
+            <div id="barChart" class="chart-box"></div>
+          </article>
+
+          <article class="chart-card">
+            <div class="card-title-row">
+              <div>
+                <h2>지역 × 연도 PM10 히트맵</h2>
+                <p>측정소별 변화 패턴 확인</p>
+              </div>
+              <div class="legend"><span>낮음</span><span class="gradient-legend"></span><span>높음</span></div>
+            </div>
+            <div id="heatmap" class="heatmap-wrap"></div>
+            <div class="footnote">
+              히트맵은 현재 제공된 측정소 평균 PM10에 연도별 평균 추세를 적용한 <b>시각화용 추정 패턴</b>입니다.
+              실제 station × year 원자료 연결 시 셀 값과 색상은 실제값으로 교체하세요.
+            </div>
+          </article>
+        </section>
+      </section>
+
+      <section id="regional" class="tab-panel">
+        <section class="two-grid">
+          <article class="chart-card">
+            <div class="card-title-row">
+              <div>
+                <h2>제주 측정소 지도 인포그래픽</h2>
+                <p>원 크기와 색상은 측정소별 평균 PM10 수준을 나타냅니다.</p>
+              </div>
+              <span class="badge gray">위치 좌표 예시</span>
+            </div>
+            <div id="mapChart" class="map-wrap"></div>
+          </article>
+
+          <article class="chart-card">
+            <div class="card-title-row">
+              <div>
+                <h2>도심 vs 외곽/관광/해안 비교</h2>
+                <p>지역유형별 측정소 평균 PM10 비교</p>
+              </div>
+              <span class="badge red">PM10</span>
+            </div>
+            <div id="regionBars" class="region-bars"></div>
+            <div class="footnote">
+              지역유형은 예시 분류입니다. 기관 기준 분류표가 있으면 <code>region_type</code> 컬럼만 교체하면 됩니다.
+            </div>
+          </article>
+        </section>
+
+        <section class="card">
+          <div class="card-title-row">
+            <div>
+              <h2>측정소 상세 테이블</h2>
+              <p>PM10 평균, 순위, 지역유형, 관리 포인트</p>
+            </div>
+            <span class="badge blue">상세 Drill-down</span>
+          </div>
+          <div class="schema-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>순위</th>
+                  <th>측정소</th>
+                  <th>지역유형</th>
+                  <th>PM10 평균</th>
+                  <th>상대 수준</th>
+                  <th>관리 포인트</th>
+                </tr>
+              </thead>
+              <tbody id="stationTable"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section id="diagnosis" class="tab-panel">
+        <section class="two-grid">
+          <article class="chart-card">
+            <div class="card-title-row">
+              <div>
+                <h2>PM10 vs PM2.5 산점도</h2>
+                <p>연도별 평균 기준 동행성 확인</p>
+              </div>
+              <span class="badge gray">n=3, 참고용</span>
+            </div>
+            <div id="scatterChart" class="scatter-box"></div>
+          </article>
+
+          <article class="chart-card">
+            <div class="card-title-row">
+              <div>
+                <h2>NO₂ vs O₃ 진단</h2>
+                <p>오존 생성 구조 확인용 차트</p>
+              </div>
+              <span class="badge orange">데이터 대기</span>
+            </div>
+            <div class="locked">
+              NO₂ 수치가 원문에 없어 비활성화 상태입니다.<br/>
+              <span style="font-weight:700">NO₂ 컬럼 연결 후 산점도와 상관관계를 자동 활성화하세요.</span>
+            </div>
+          </article>
+        </section>
+
+        <section class="two-grid">
+          <article class="chart-card">
+            <div class="card-title-row">
+              <div>
+                <h2>오염물질별 Small Multiples</h2>
+                <p>PM10, PM2.5, O₃의 변화 방향을 동시에 비교합니다.</p>
+              </div>
+            </div>
+            <div id="smallMultiples" class="small-multiples"></div>
+          </article>
+
+          <article class="chart-card">
+            <div class="card-title-row">
+              <div>
+                <h2>상관관계 히트맵</h2>
+                <p>연도별 평균 3개 관측치 기반이므로 해석은 참고용입니다.</p>
+              </div>
+              <span class="badge gray">NO₂ 미포함</span>
+            </div>
+            <div id="corrHeatmap" class="corr-wrap"></div>
+            <div class="footnote">
+              정확한 상관분석은 월별/일별 원자료 또는 측정소×연도 패널 원자료를 사용해야 합니다.
+            </div>
+          </article>
+        </section>
+      </section>
+
+      <section id="policy" class="tab-panel">
+        <section class="policy-grid">
+          <article class="policy-card">
+            <h2>2023년 PM10 급증 원인 후보</h2>
+            <ul>
+              <li>황사 및 외부 유입 영향</li>
+              <li>관광·교통량 증가</li>
+              <li>건조·풍속 등 기상 조건</li>
+              <li>도심 도로 재비산먼지</li>
+            </ul>
+          </article>
+
+          <article class="policy-card">
+            <h2>2024년 개선 원인 후보</h2>
+            <ul>
+              <li>배출 저감 정책 효과</li>
+              <li>기상 조건 변화</li>
+              <li>교통량·운행 패턴 변화</li>
+              <li>지역 단위 관리 강화</li>
+            </ul>
+          </article>
+
+          <article class="policy-card">
+            <h2>다음 분석 확장</h2>
+            <ul>
+              <li>2025–2026 농도 예측</li>
+              <li>측정소 클러스터링</li>
+              <li>정책 전후 비교분석</li>
+              <li>NO₂·기상·교통량 결합 모델</li>
+            </ul>
+          </article>
+        </section>
+
+        <section class="note-card" style="margin-top:18px;">
+          <h2>정책 분석 로드맵</h2>
+          <div class="timeline">
+            <div class="timeline-item">
+              <div class="timeline-year">1단계</div>
+              <p>Overview 페이지에서 KPI, 추이, PM10 고농도 측정소를 고정 모니터링합니다.</p>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-year">2단계</div>
+              <p>지도, 지역유형, 측정소 순위를 통해 도심·관광·해안 지역의 차이를 비교합니다.</p>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-year">3단계</div>
+              <p>NO₂, 기상, 교통량 자료를 결합해 O₃와 PM10 변동 원인을 분해합니다.</p>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-year">4단계</div>
+              <p>정책 시행 전후의 농도 변화와 계절성을 통제해 실질 효과를 추정합니다.</p>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section id="bi" class="tab-panel">
+        <section class="two-grid">
+          <article class="card">
+            <h2>권장 데이터 구조: Long Format</h2>
+            <p>Power BI와 Tableau 모두 아래 구조가 가장 유지보수하기 쉽습니다.</p>
+            <div class="schema-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>year</th>
+                    <th>station</th>
+                    <th>pollutant</th>
+                    <th>value</th>
+                    <th>unit</th>
+                    <th>region_type</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>2022</td><td>이도동</td><td>PM10</td><td>28.33</td><td>㎍/㎥</td><td>도심</td></tr>
+                  <tr><td>2022</td><td>이도동</td><td>PM2.5</td><td>14.25</td><td>㎍/㎥</td><td>도심</td></tr>
+                  <tr><td>2022</td><td>이도동</td><td>O3</td><td>0.0416</td><td>ppm</td><td>도심</td></tr>
+                  <tr><td>2024</td><td>노형로</td><td>PM10</td><td>32.00</td><td>㎍/㎥</td><td>도심</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="card">
+            <h2>Power BI / Tableau 시각화 매핑</h2>
+            <p>동일한 정보구조를 BI 도구에서도 재현할 수 있습니다.</p>
+            <div class="schema-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>분석 요소</th>
+                    <th>Power BI</th>
+                    <th>Tableau</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>KPI</td><td>Card, KPI Card</td><td>Text, KPI Sheet</td></tr>
+                  <tr><td>연도별 추이</td><td>Line Chart</td><td>Line</td></tr>
+                  <tr><td>측정소 순위</td><td>Clustered Bar</td><td>Bar</td></tr>
+                  <tr><td>히트맵</td><td>Matrix + Conditional Formatting</td><td>Highlight Table</td></tr>
+                  <tr><td>지도</td><td>Azure Map</td><td>Symbol Map</td></tr>
+                  <tr><td>요약문</td><td>Smart Narrative</td><td>Text Dashboard Object</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section class="two-grid">
+          <article class="card">
+            <h2>Power BI 권장 DAX</h2>
+            <pre>Avg Value =
+AVERAGE(AirQuality[value])
+
+Latest Year =
+MAXX(
+    ALLSELECTED(AirQuality[year]),
+    AirQuality[year]
+)
+
+YoY % =
+DIVIDE(
+    [Current Avg] - [Previous Avg],
+    [Previous Avg]
+)
+
+Station Rank =
+RANKX(
+    ALLSELECTED(AirQuality[station]),
+    [Avg Value],
+    ,
+    DESC,
+    Dense
+)</pre>
+          </article>
+
+          <article class="card">
+            <h2>Tableau 계산식</h2>
+            <pre>// Latest Year
+{ FIXED : MAX([year]) }
+
+// Current Avg
+AVG(
+    IF [year] = [Latest Year]
+    THEN [value]
+    END
+)
+
+// YoY %
+([Current Avg] - [Previous Avg]) / [Previous Avg]
+
+// Improvement Flag
+IF [YoY %] < 0 THEN "개선"
+ELSEIF [YoY %] > 0 THEN "악화"
+ELSE "유지"
+END</pre>
+          </article>
+        </section>
+      </section>
+    </main>
+
+    <footer class="footer">
+      제주 대기오염 변화 분석 대시보드 · 2022–2024 · Vanilla HTML/CSS/JavaScript 단일 파일<br/>
+      NO₂ 및 12개 측정소 전체 원자료 연결 시 데이터 배열만 교체하면 확장됩니다.
+    </footer>
+  </div>
+
+  <script>
+    const meta = {
+      PM10: { label: "PM10", title: "미세먼지", unit: "㎍/㎥", color: "#ef4444", icon: "PM" },
+      PM25: { label: "PM2.5", title: "초미세먼지", unit: "㎍/㎥", color: "#6366f1", icon: "2.5" },
+      O3: { label: "O₃", title: "오존", unit: "ppm", color: "#10b981", icon: "O₃" },
+      NO2: { label: "NO₂", title: "이산화질소", unit: "ppm", color: "#f97316", icon: "NO₂" }
+    };
+
+    const yearlyData = [
+      { year: "2022", PM10: 28.33, PM25: 14.25, O3: 0.0416 },
+      { year: "2023", PM10: 31.75, PM25: 13.83, O3: 0.0409 },
+      { year: "2024", PM10: 26.33, PM25: 12.58, O3: 0.0394 }
+    ];
+
+    const stationPm10 = [
+      { name: "노형로", value: 32.00, region: "도심", lat: 33.485, lng: 126.477, point: "교통·상업 밀집" },
+      { name: "애월읍", value: 31.00, region: "관광", lat: 33.464, lng: 126.318, point: "관광·서부권 이동" },
+      { name: "이도동", value: 30.67, region: "도심", lat: 33.500, lng: 126.531, point: "제주시 도심" },
+      { name: "연동", value: 30.67, region: "도심", lat: 33.489, lng: 126.494, point: "교통·숙박 상권" },
+      { name: "조천읍", value: 30.00, region: "외곽", lat: 33.540, lng: 126.666, point: "동부 외곽" },
+      { name: "성산읍", value: 28.67, region: "관광", lat: 33.450, lng: 126.918, point: "동부 관광" },
+      { name: "한림읍", value: 28.00, region: "해안", lat: 33.410, lng: 126.267, point: "서부 해안" },
+      { name: "동홍동", value: 27.33, region: "도심", lat: 33.253, lng: 126.568, point: "서귀포 도심" }
+    ];
+
+    const state = {
+      year: "all",
+      pollutant: "PM10",
+      station: "all",
+      region: "all"
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    function average(values) {
+      const nums = values.filter((v) => typeof v === "number" && !Number.isNaN(v));
+      return nums.reduce((a, b) => a + b, 0) / nums.length;
+    }
+
+    function formatValue(value, pollutant) {
+      if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
+      return pollutant === "O3" ? Number(value).toFixed(4) : Number(value).toFixed(2);
+    }
+
+    function formatDelta(delta) {
+      if (delta === null || delta === undefined || !Number.isFinite(delta)) {
+        return '<span class="delta neutral">전년 없음</span>';
+      }
+      const good = delta <= 0;
+      const sign = delta > 0 ? "+" : "";
+      const arrow = delta <= 0 ? "↓" : "↑";
+      return `<span class="delta ${good ? "good" : "bad"}">${arrow} ${sign}${delta.toFixed(1)}%</span>`;
+    }
+
+    function calcYoYForYear(key, year) {
+      const idx = yearlyData.findIndex((d) => d.year === year);
+      if (idx <= 0) return null;
+      const current = yearlyData[idx][key];
+      const previous = yearlyData[idx - 1][key];
+      if (previous === 0 || previous === undefined || current === undefined) return null;
+      return ((current - previous) / previous) * 100;
+    }
+
+    function latestYearForKpi() {
+      return state.year === "all" ? yearlyData[yearlyData.length - 1].year : state.year;
+    }
+
+    function selectedYearRow() {
+      return yearlyData.find((d) => d.year === latestYearForKpi()) || yearlyData[yearlyData.length - 1];
+    }
+
+    function filteredStations() {
+      return stationPm10.filter((s) => {
+        const regionOk = state.region === "all" || s.region === state.region;
+        const stationOk = state.station === "all" || s.name === state.station;
+        return regionOk && stationOk;
+      });
+    }
+
+    function rankStations(data = stationPm10) {
+      return [...data].sort((a, b) => b.value - a.value).map((s, i) => ({ ...s, rank: i + 1 }));
+    }
+
+    function hexToRgb(hex) {
+      const clean = hex.replace("#", "");
+      return {
+        r: parseInt(clean.slice(0, 2), 16),
+        g: parseInt(clean.slice(2, 4), 16),
+        b: parseInt(clean.slice(4, 6), 16)
+      };
+    }
+
+    function mixColor(a, b, t) {
+      const ca = hexToRgb(a), cb = hexToRgb(b);
+      const r = Math.round(ca.r + (cb.r - ca.r) * t);
+      const g = Math.round(ca.g + (cb.g - ca.g) * t);
+      const bl = Math.round(ca.b + (cb.b - ca.b) * t);
+      return `rgb(${r}, ${g}, ${bl})`;
+    }
+
+    function heatColor(value, min, max) {
+      const ratio = max === min ? 0.5 : Math.max(0, Math.min(1, (value - min) / (max - min)));
+      if (ratio < 0.5) return mixColor("#10b981", "#f59e0b", ratio * 2);
+      return mixColor("#f59e0b", "#ef4444", (ratio - 0.5) * 2);
+    }
+
+    function textColorForHeat(value, min, max) {
+      const ratio = max === min ? 0.5 : (value - min) / (max - min);
+      return ratio > 0.62 ? "white" : "#0f172a";
+    }
+
+    function initFilters() {
+      const stationSelect = $("stationFilter");
+      stationPm10.forEach((s) => {
+        const opt = document.createElement("option");
+        opt.value = s.name;
+        opt.textContent = s.name;
+        stationSelect.appendChild(opt);
+      });
+
+      $("yearFilter").addEventListener("change", (e) => {
+        state.year = e.target.value;
+        renderAll();
+      });
+      $("pollutantFilter").addEventListener("change", (e) => {
+        state.pollutant = e.target.value;
+        renderAll();
+      });
+      $("stationFilter").addEventListener("change", (e) => {
+        state.station = e.target.value;
+        renderAll();
+      });
+      $("regionFilter").addEventListener("change", (e) => {
+        state.region = e.target.value;
+        renderAll();
+      });
+
+      document.querySelectorAll(".tab-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+          document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
+          btn.classList.add("active");
+          $(btn.dataset.tab).classList.add("active");
+        });
+      });
+    }
+
+    function renderKpis() {
+      const row = selectedYearRow();
+      const year = row.year;
+      const stationData = filteredStations();
+      const top = [...stationData].sort((a, b) => b.value - a.value)[0] || null;
+
+      const cards = [
+        { key: "PM10", title: `${year} PM10 평균`, value: row.PM10, unit: meta.PM10.unit, color: meta.PM10.color },
+        { key: "PM25", title: `${year} PM2.5 평균`, value: row.PM25, unit: meta.PM25.unit, color: meta.PM25.color },
+        { key: "O3", title: `${year} O₃ 평균`, value: row.O3, unit: meta.O3.unit, color: meta.O3.color }
+      ];
+
+      $("kpiGrid").innerHTML = cards.map((c) => {
+        const delta = calcYoYForYear(c.key, year);
+        return `
+          <article class="kpi-card" style="--accent:${c.color}">
+            <div class="kpi-top">
+              <p class="kpi-title">${c.title}</p>
+              <div class="kpi-icon">${meta[c.key].icon}</div>
+            </div>
+            <div class="kpi-value">
+              <strong>${formatValue(c.value, c.key)}</strong>
+              <span>${c.unit}</span>
+            </div>
+            <div class="kpi-bottom">
+              <span class="tiny-muted">전년 대비</span>
+              ${formatDelta(delta)}
+            </div>
+          </article>
+        `;
+      }).join("") + `
+        <article class="kpi-card" style="--accent:#f59e0b">
+          <div class="kpi-top">
+            <p class="kpi-title">PM10 최고 측정소</p>
+            <div class="kpi-icon">TOP</div>
+          </div>
+          <div class="kpi-value">
+            <strong>${top ? top.name : "-"}</strong>
+          </div>
+          <div class="kpi-bottom">
+            <span class="tiny-muted">${top ? top.region + " · " + top.point : "필터 결과 없음"}</span>
+            <span class="delta bad">${top ? "평균 " + top.value.toFixed(2) : "-"}</span>
+          </div>
+        </article>
+      `;
+    }
+
+    function lineChartSvg(data, key, options = {}) {
+      const m = meta[key];
+      if (!m || key === "NO2") {
+        return `<div class="empty-state">NO₂ 데이터 연결 후 차트가 활성화됩니다.</div>`;
+      }
+
+      const width = options.width || 760;
+      const height = options.height || 330;
+      const margin = options.margin || { top: 28, right: 30, bottom: 48, left: 58 };
+      const plotW = width - margin.left - margin.right;
+      const plotH = height - margin.top - margin.bottom;
+      const values = data.map((d) => d[key]).filter((v) => typeof v === "number");
+      let min = Math.min(...values), max = Math.max(...values);
+
+      if (key === "O3") {
+        min = 0.038; max = 0.043;
+      } else {
+        const pad = Math.max((max - min) * 0.28, 1.2);
+        min = Math.max(0, min - pad);
+        max = max + pad;
+      }
+
+      const x = (i) => margin.left + (data.length === 1 ? plotW / 2 : (i / (data.length - 1)) * plotW);
+      const y = (v) => margin.top + (max - v) / (max - min) * plotH;
+      const points = data.map((d, i) => [x(i), y(d[key]), d]);
+      const path = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(" ");
+      const area = `M ${points[0][0].toFixed(1)} ${margin.top + plotH} ` +
+        points.map((p) => `L ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(" ") +
+        ` L ${points[points.length - 1][0].toFixed(1)} ${margin.top + plotH} Z`;
+      const ticks = Array.from({ length: 5 }, (_, i) => min + ((max - min) * i / 4));
+      const highlightYear = state.year === "all" ? "2024" : state.year;
+      const highlight = points.find((p) => p[2].year === highlightYear);
+
+      return `
+        <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${m.label} 연도별 추이">
+          <defs>
+            <linearGradient id="mainGrad-${key}" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stop-color="${m.color}" stop-opacity="0.22" />
+              <stop offset="100%" stop-color="${m.color}" stop-opacity="0.02" />
+            </linearGradient>
+            <filter id="softShadow-${key}" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="${m.color}" flood-opacity="0.18"/>
+            </filter>
+          </defs>
+
+          ${ticks.map((t) => {
+            const ty = y(t);
+            return `
+              <line class="svg-grid" x1="${margin.left}" x2="${width - margin.right}" y1="${ty}" y2="${ty}" />
+              <text class="svg-axis" x="${margin.left - 10}" y="${ty + 4}" text-anchor="end">${formatValue(t, key)}</text>
+            `;
+          }).join("")}
+
+          <line x1="${margin.left}" y1="${margin.top + plotH}" x2="${width - margin.right}" y2="${margin.top + plotH}" stroke="#cbd5e1"/>
+          <path d="${area}" fill="url(#mainGrad-${key})"></path>
+          <path d="${path}" fill="none" stroke="${m.color}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" filter="url(#softShadow-${key})"></path>
+
+          ${highlight ? `
+            <line x1="${highlight[0]}" x2="${highlight[0]}" y1="${margin.top}" y2="${margin.top + plotH}" stroke="${m.color}" stroke-opacity="0.20" stroke-dasharray="5 5"/>
+          ` : ""}
+
+          ${points.map(([px, py, d]) => {
+            const active = d.year === highlightYear;
+            return `
+              <g>
+                <circle cx="${px}" cy="${py}" r="${active ? 8 : 6}" fill="white" stroke="${m.color}" stroke-width="${active ? 5 : 4}">
+                  <title>${d.year} ${m.label}: ${formatValue(d[key], key)} ${m.unit}</title>
+                </circle>
+                <text class="svg-label" x="${px}" y="${py - 14}" text-anchor="middle">${formatValue(d[key], key)}</text>
+                <text class="svg-axis" x="${px}" y="${height - 16}" text-anchor="middle">${d.year}</text>
+              </g>
+            `;
+          }).join("")}
+        </svg>
+      `;
+    }
+
+    function renderLineChart() {
+      const key = state.pollutant;
+      const m = meta[key];
+
+      $("lineChartTitle").textContent = `연도별 평균 ${m.title}(${m.label})`;
+      $("lineChartDesc").textContent = `${m.label}의 2022–2024 평균 농도 변화`;
+      $("selectedPollutantBadge").textContent = m.label;
+      $("selectedPollutantBadge").style.background = key === "PM10" ? "#fef2f2" : key === "PM25" ? "#eef2ff" : "#ecfdf5";
+      $("selectedPollutantBadge").style.color = m.color;
+      $("lineChart").innerHTML = lineChartSvg(yearlyData, key);
+    }
+
+    function renderInsights() {
+      const pm10Delta = calcYoYForYear("PM10", "2024");
+      const pm25Delta = calcYoYForYear("PM25", "2024");
+      const o3Delta = calcYoYForYear("O3", "2024");
+
+      $("insightList").innerHTML = `
+        <div class="insight pm10">
+          <b>PM10</b>
+          2023년 최고치 이후 2024년에 약 ${Math.abs(pm10Delta).toFixed(1)}% 감소했습니다.
+        </div>
+        <div class="insight pm25">
+          <b>PM2.5</b>
+          2022년 14.25 → 2023년 13.83 → 2024년 12.58로 3년 연속 감소했습니다.
+        </div>
+        <div class="insight o3">
+          <b>O₃</b>
+          2024년 전년 대비 ${o3Delta.toFixed(1)}% 감소했지만 NO₂, 일사량, 기온, 풍속과 함께 해석해야 합니다.
+        </div>
+        <div class="insight warn">
+          <b>지역 격차</b>
+          PM10 고농도 측정소는 노형로, 애월읍, 이도동, 연동입니다.
+        </div>
+      `;
+    }
+
+    function barChartSvg(data) {
+      const ranked = rankStations(data);
+      if (!ranked.length) {
+        return `<div class="empty-state">선택한 필터에 해당하는 측정소가 없습니다.</div>`;
+      }
+
+      const width = 760;
+      const rowH = 38;
+      const height = 54 + ranked.length * rowH;
+      const margin = { top: 12, right: 72, bottom: 28, left: 90 };
+      const plotW = width - margin.left - margin.right;
+      const min = Math.max(0, Math.floor(Math.min(...ranked.map((d) => d.value)) - 2));
+      const max = Math.ceil(Math.max(...ranked.map((d) => d.value)) + 1);
+      const x = (v) => margin.left + ((v - min) / (max - min)) * plotW;
+      const base = x(min);
+
+      return `
+        <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="측정소별 PM10 순위">
+          <line x1="${base}" x2="${width - margin.right}" y1="${height - margin.bottom}" y2="${height - margin.bottom}" stroke="#cbd5e1"/>
+          ${[min, Math.round((min + max)/2), max].map((t) => `
+            <g>
+              <line class="svg-grid" x1="${x(t)}" x2="${x(t)}" y1="8" y2="${height - margin.bottom}" />
+              <text class="svg-axis" x="${x(t)}" y="${height - 7}" text-anchor="middle">${t}</text>
+            </g>
+          `).join("")}
+
+          ${ranked.map((d, i) => {
+            const y = 20 + i * rowH;
+            const w = x(d.value) - base;
+            const globalRank = rankStations().find((s) => s.name === d.name)?.rank || i + 1;
+            const fill = globalRank === 1 ? "#ef4444" : globalRank <= 3 ? "#f59e0b" : "#94a3b8";
+            const selected = state.station === d.name;
+            return `
+              <g>
+                <text class="svg-axis" x="${margin.left - 12}" y="${y + 22}" text-anchor="end">${d.name}</text>
+                <rect x="${base}" y="${y}" width="${w}" height="24" rx="10" fill="${fill}" opacity="${selected || state.station === "all" ? 0.96 : 0.42}">
+                  <title>${d.name}: ${d.value.toFixed(2)} ㎍/㎥</title>
+                </rect>
+                ${selected ? `<rect x="${base - 2}" y="${y - 2}" width="${w + 4}" height="28" rx="12" fill="none" stroke="#0f172a" stroke-width="2"/>` : ""}
+                <text class="svg-label" x="${x(d.value) + 8}" y="${y + 18}">${d.value.toFixed(2)}</text>
+                <text x="16" y="${y + 18}" fill="${globalRank <= 3 ? "#b45309" : "#64748b"}" font-size="12" font-weight="1000">#${globalRank}</text>
+              </g>
+            `;
+          }).join("")}
+        </svg>
+      `;
+    }
+
+    function renderBarChart() {
+      const data = filteredStations().sort((a, b) => b.value - a.value);
+      $("barChart").innerHTML = barChartSvg(data);
+      $("stationCountBadge").textContent = `${data.length}개 지점`;
+    }
+
+    function estimateStationYear(stationAvg, year) {
+      const stationMean = average(stationPm10.map((s) => s.value));
+      const yearMean = yearlyData.find((d) => d.year === String(year)).PM10;
+      return stationAvg * yearMean / stationMean;
+    }
+
+    function renderHeatmap() {
+      const stations = filteredStations().sort((a, b) => b.value - a.value);
+      if (!stations.length) {
+        $("heatmap").innerHTML = `<div class="empty-state">선택한 필터에 해당하는 측정소가 없습니다.</div>`;
+        return;
+      }
+
+      const years = ["2022", "2023", "2024"];
+      const allValues = stationPm10.flatMap((s) => years.map((y) => estimateStationYear(s.value, y)));
+      const min = Math.min(...allValues);
+      const max = Math.max(...allValues);
+
+      let html = `<div class="heatmap">
+        <div></div>
+        ${years.map((y) => `<div class="heat-head">${y}</div>`).join("")}
+      `;
+
+      stations.forEach((s) => {
+        html += `<div class="heat-station">${s.name}</div>`;
+        years.forEach((year) => {
+          const value = estimateStationYear(s.value, year);
+          const bg = heatColor(value, min, max);
+          const fg = textColorForHeat(value, min, max);
+          html += `
+            <div class="heat-cell" style="background:${bg}; color:${fg}" title="${s.name} ${year} PM10 추정 패턴 ${value.toFixed(1)}">
+              ${value.toFixed(1)}
+              <small>㎍/㎥</small>
+            </div>
+          `;
+        });
+      });
+
+      html += `</div>`;
+      $("heatmap").innerHTML = html;
+    }
+
+    function renderMap() {
+      const width = 720, height = 430;
+      const lngMin = 126.15, lngMax = 126.95, latMin = 33.10, latMax = 33.58;
+      const min = Math.min(...stationPm10.map((s) => s.value));
+      const max = Math.max(...stationPm10.map((s) => s.value));
+      const data = stationPm10.map((s) => {
+        const x = 68 + ((s.lng - lngMin) / (lngMax - lngMin)) * 580;
+        const y = 360 - ((s.lat - latMin) / (latMax - latMin)) * 290;
+        const r = 8 + ((s.value - min) / (max - min)) * 12;
+        const visible = (state.region === "all" || state.region === s.region) && (state.station === "all" || state.station === s.name);
+        return { ...s, x, y, r, visible };
+      });
+
+      $("mapChart").innerHTML = `
+        <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="제주 측정소 지도">
+          <defs>
+            <filter id="mapShadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="12" stdDeviation="13" flood-color="#0f172a" flood-opacity="0.12"/>
+            </filter>
+          </defs>
+          <rect x="0" y="0" width="${width}" height="${height}" rx="28" fill="#f8fafc"/>
+          <path d="M70,245 C114,125 245,73 382,91 C522,109 646,174 658,245 C671,325 548,374 399,382 C251,389 100,342 67,279 C60,266 61,254 70,245 Z"
+            fill="#dbeafe" stroke="#bfdbfe" stroke-width="3" filter="url(#mapShadow)"/>
+          <path d="M114,252 C148,157 263,114 383,125 C502,137 603,188 610,244 C619,306 518,342 397,349 C276,355 149,319 116,274 C109,264 108,257 114,252 Z"
+            fill="#ecfeff" stroke="#bae6fd" stroke-width="2" opacity="0.9"/>
+
+          <text x="46" y="52" fill="#0f172a" font-size="18" font-weight="1000">Jeju PM10 Station Map</text>
+          <text x="46" y="76" fill="#64748b" font-size="12" font-weight="800">원 크기 = 평균 PM10, 색상 = 농도 수준</text>
+
+          ${data.map((s) => {
+            const fill = heatColor(s.value, min, max);
+            const opacity = s.visible ? 0.96 : 0.18;
+            const stroke = state.station === s.name ? "#0f172a" : "white";
+            const strokeWidth = state.station === s.name ? 4 : 2;
+            return `
+              <g opacity="${opacity}">
+                <circle cx="${s.x}" cy="${s.y}" r="${s.r + 6}" fill="${fill}" opacity="0.14"/>
+                <circle cx="${s.x}" cy="${s.y}" r="${s.r}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}">
+                  <title>${s.name} · ${s.region} · PM10 ${s.value.toFixed(2)} ㎍/㎥</title>
+                </circle>
+                <text x="${s.x + s.r + 8}" y="${s.y + 4}" fill="#0f172a" font-size="12" font-weight="1000">${s.name}</text>
+                <text x="${s.x + s.r + 8}" y="${s.y + 20}" fill="#64748b" font-size="10" font-weight="800">${s.value.toFixed(1)}</text>
+              </g>
+            `;
+          }).join("")}
+
+          <g transform="translate(46 360)">
+            <rect x="0" y="0" width="246" height="42" rx="16" fill="white" stroke="#e2e8f0"/>
+            <text x="14" y="25" fill="#64748b" font-size="12" font-weight="900">낮음</text>
+            <rect x="54" y="15" width="120" height="10" rx="99" fill="url(#none)"/>
+            <rect x="54" y="15" width="120" height="10" rx="99" fill="#10b981"/>
+            <rect x="94" y="15" width="40" height="10" fill="#f59e0b"/>
+            <rect x="134" y="15" width="40" height="10" rx="99" fill="#ef4444"/>
+            <text x="190" y="25" fill="#64748b" font-size="12" font-weight="900">높음</text>
+          </g>
+        </svg>
+      `;
+    }
+
+    function renderRegionBars() {
+      const groups = {};
+      stationPm10.forEach((s) => {
+        if (!groups[s.region]) groups[s.region] = [];
+        groups[s.region].push(s.value);
+      });
+
+      const rows = Object.entries(groups)
+        .map(([region, values]) => ({ region, avg: average(values), n: values.length }))
+        .sort((a, b) => b.avg - a.avg);
+
+      const min = Math.min(...rows.map((r) => r.avg)) - 1;
+      const max = Math.max(...rows.map((r) => r.avg)) + 1;
+
+      $("regionBars").innerHTML = rows.map((r) => {
+        const width = ((r.avg - min) / (max - min)) * 100;
+        const active = state.region === "all" || state.region === r.region;
+        return `
+          <div class="region-bar-row" style="opacity:${active ? 1 : 0.32}">
+            <div>${r.region}</div>
+            <div class="track"><div class="fill" style="width:${width}%"></div></div>
+            <div>${r.avg.toFixed(1)}</div>
+          </div>
+          <div style="margin:-8px 0 4px 80px;color:#64748b;font-size:12px;font-weight:750;">측정소 ${r.n}개</div>
+        `;
+      }).join("");
+    }
+
+    function renderStationTable() {
+      const filteredNames = new Set(filteredStations().map((s) => s.name));
+      const rows = rankStations(stationPm10).filter((s) => filteredNames.has(s.name));
+      $("stationTable").innerHTML = rows.map((s) => {
+        const level = s.rank <= 3 ? "높음" : s.rank <= 5 ? "중간" : "낮음";
+        const levelClass = s.rank <= 3 ? "red" : s.rank <= 5 ? "orange" : "green";
+        return `
+          <tr>
+            <td><span class="rank-pill ${s.rank <= 3 ? "top" : ""}">${s.rank}</span></td>
+            <td><b>${s.name}</b></td>
+            <td><span class="badge gray">${s.region}</span></td>
+            <td><b>${s.value.toFixed(2)}</b> ㎍/㎥</td>
+            <td><span class="badge ${levelClass}">${level}</span></td>
+            <td>${s.point}</td>
+          </tr>
+        `;
+      }).join("") || `<tr><td colspan="6">선택한 필터에 해당하는 측정소가 없습니다.</td></tr>`;
+    }
+
+    function scatterSvg() {
+      const width = 650, height = 330;
+      const margin = { top: 26, right: 30, bottom: 54, left: 58 };
+      const xs = yearlyData.map((d) => d.PM10);
+      const ys = yearlyData.map((d) => d.PM25);
+      const xMin = Math.min(...xs) - 1.5, xMax = Math.max(...xs) + 1.5;
+      const yMin = Math.min(...ys) - 0.7, yMax = Math.max(...ys) + 0.7;
+      const plotW = width - margin.left - margin.right;
+      const plotH = height - margin.top - margin.bottom;
+      const x = (v) => margin.left + ((v - xMin) / (xMax - xMin)) * plotW;
+      const y = (v) => margin.top + ((yMax - v) / (yMax - yMin)) * plotH;
+
+      return `
+        <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="PM10 PM2.5 산점도">
+          ${[0,1,2,3,4].map((i) => {
+            const xv = xMin + (xMax - xMin) * i / 4;
+            const yv = yMin + (yMax - yMin) * i / 4;
+            return `
+              <line class="svg-grid" x1="${x(xv)}" x2="${x(xv)}" y1="${margin.top}" y2="${height - margin.bottom}"/>
+              <line class="svg-grid" x1="${margin.left}" x2="${width - margin.right}" y1="${y(yv)}" y2="${y(yv)}"/>
+              <text class="svg-axis" x="${x(xv)}" y="${height - 22}" text-anchor="middle">${xv.toFixed(1)}</text>
+              <text class="svg-axis" x="${margin.left - 8}" y="${y(yv)+4}" text-anchor="end">${yv.toFixed(1)}</text>
+            `;
+          }).join("")}
+          <line x1="${margin.left}" x2="${width - margin.right}" y1="${height - margin.bottom}" y2="${height - margin.bottom}" stroke="#cbd5e1"/>
+          <line x1="${margin.left}" x2="${margin.left}" y1="${margin.top}" y2="${height - margin.bottom}" stroke="#cbd5e1"/>
+          <text x="${width/2}" y="${height - 4}" fill="#64748b" font-size="12" font-weight="900" text-anchor="middle">PM10 ㎍/㎥</text>
+          <text x="14" y="${height/2}" fill="#64748b" font-size="12" font-weight="900" text-anchor="middle" transform="rotate(-90 14 ${height/2})">PM2.5 ㎍/㎥</text>
+
+          ${yearlyData.map((d) => `
+            <g>
+              <circle cx="${x(d.PM10)}" cy="${y(d.PM25)}" r="11" fill="#6366f1" opacity="0.88" stroke="white" stroke-width="3">
+                <title>${d.year}: PM10 ${d.PM10}, PM2.5 ${d.PM25}</title>
+              </circle>
+              <text x="${x(d.PM10)}" y="${y(d.PM25)-17}" fill="#0f172a" font-size="12" font-weight="1000" text-anchor="middle">${d.year}</text>
+            </g>
+          `).join("")}
+        </svg>
+      `;
+    }
+
+    function miniLineSvg(key) {
+      const m = meta[key];
+      if (key === "NO2") {
+        return `
+          <div class="mini-line">
+            <h3 style="color:${m.color}">${m.label}</h3>
+            <div class="locked" style="min-height:120px">데이터 연결 필요</div>
+          </div>
+        `;
+      }
+      const svg = lineChartSvg(yearlyData, key, {
+        width: 360,
+        height: 170,
+        margin: { top: 20, right: 16, bottom: 30, left: 42 }
+      });
+      return `
+        <div class="mini-line">
+          <h3 style="color:${m.color}">${m.title}(${m.label})</h3>
+          ${svg}
+        </div>
+      `;
+    }
+
+    function correlation(a, b) {
+      const meanA = average(a);
+      const meanB = average(b);
+      const numerator = a.reduce((sum, v, i) => sum + (v - meanA) * (b[i] - meanB), 0);
+      const denomA = Math.sqrt(a.reduce((sum, v) => sum + Math.pow(v - meanA, 2), 0));
+      const denomB = Math.sqrt(b.reduce((sum, v) => sum + Math.pow(v - meanB, 2), 0));
+      if (denomA === 0 || denomB === 0) return null;
+      return numerator / (denomA * denomB);
+    }
+
+    function corrColor(v) {
+      if (v === null) return "#f1f5f9";
+      if (v >= 0) return mixColor("#ffffff", "#ef4444", Math.abs(v) * 0.75);
+      return mixColor("#ffffff", "#2563eb", Math.abs(v) * 0.75);
+    }
+
+    function renderDiagnostics() {
+      $("scatterChart").innerHTML = scatterSvg();
+      $("smallMultiples").innerHTML = ["PM10", "PM25", "O3", "NO2"].map(miniLineSvg).join("");
+
+      const keys = ["PM10", "PM25", "O3", "NO2"];
+      const series = {
+        PM10: yearlyData.map((d) => d.PM10),
+        PM25: yearlyData.map((d) => d.PM25),
+        O3: yearlyData.map((d) => d.O3),
+        NO2: null
+      };
+
+      let html = `<div class="corr-grid"><div></div>${keys.map((k) => `<div class="corr-head">${meta[k].label}</div>`).join("")}`;
+      keys.forEach((rowKey) => {
+        html += `<div class="corr-label">${meta[rowKey].label}</div>`;
+        keys.forEach((colKey) => {
+          const v = series[rowKey] && series[colKey] ? (rowKey === colKey ? 1 : correlation(series[rowKey], series[colKey])) : null;
+          const bg = corrColor(v);
+          const txt = v === null ? "N/A" : (v > 0 ? "+" : "") + v.toFixed(2);
+          const color = v !== null && Math.abs(v) > 0.75 ? "white" : "#0f172a";
+          html += `<div class="corr-cell" style="background:${bg};color:${color}">${txt}</div>`;
+        });
+      });
+      html += `</div>`;
+      $("corrHeatmap").innerHTML = html;
+    }
+
+    function renderAll() {
+      renderKpis();
+      renderLineChart();
+      renderInsights();
+      renderBarChart();
+      renderHeatmap();
+      renderMap();
+      renderRegionBars();
+      renderStationTable();
+      renderDiagnostics();
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      initFilters();
+      renderAll();
+    });
+  </script>
+</body>
+</html>
