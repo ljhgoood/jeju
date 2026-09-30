@@ -205,7 +205,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 <script>
 "use strict";
 // 원본 한글 서식 좌표(mm, 용지 왼쪽 위 기준). 본문 시작 = 왼쪽 7mm, 위 10mm(위 여백 5 + 머리말 5)
-const COVER_POS=[{x:44.5,y:52.3},{x:44.5,y:121.9},{x:44.5,y:191.4}];
+// 표지: 원본 좌표에서 30mm 아래로 이동(사용자 요청)
+const COVER_POS=[{x:44.5,y:82.3},{x:44.5,y:151.9},{x:44.5,y:221.4}];
 const BOX_POS=[{x:8,y:11},{x:103.1,y:11},{x:8,y:107.1},{x:103.1,y:107.1}];
 const INDEX_POS={x:11,y:10.5};
 const INDEX_ROWS=24;
