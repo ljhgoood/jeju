@@ -62,9 +62,9 @@ table.map input{border:0;padding:3px 4px;font-size:12px}
 .cover .c3{overflow-wrap:anywhere;word-break:keep-all}
 .cover.empty{border-style:dashed;border-color:#bbb}
 .cover.bad{outline:2px solid var(--bad);outline-offset:-2px}
-/* 상자 라벨: 93.1 × 115.0mm, 2열 25.1/68.0mm, 행 10/10/10/15.8/69.2mm, 14pt */
-.box{width:93.1mm;height:115mm;border-collapse:collapse;table-layout:fixed;font-size:14pt;line-height:1.35}
-.box td{border:.12mm solid #000;padding:.5mm 1.5mm;vertical-align:middle;overflow:hidden}
+/* 상자 라벨: 93.1 × 92.0mm(원본 115.0mm의 80%), 2열 25.1/68.0mm, 행 8/8/8/12.64/55.36mm, 14pt */
+.box{width:93.1mm;height:92mm;border-collapse:collapse;table-layout:fixed;font-size:14pt;line-height:1.2}
+.box td{border:.12mm solid #000;padding:0 1.5mm;vertical-align:middle;overflow:hidden}
 .box td.h{width:25.1mm;text-align:center;font-weight:700;padding:.5mm}
 .box td.v{text-align:center}
 .box td.list{text-align:left;vertical-align:middle}
@@ -74,12 +74,11 @@ table.map input{border:0;padding:3px 4px;font-size:12px}
 .idx h3{text-align:center;font-size:16pt;font-weight:700;letter-spacing:.5em;margin:0 0 2mm;text-decoration:underline;text-underline-offset:1.5mm}
 .idx .t1{text-align:center;font-size:13pt;font-weight:700;margin-bottom:2mm;overflow-wrap:anywhere}
 .idx .meta{display:flex;justify-content:space-between;font-size:10pt;margin-bottom:2mm;gap:4mm}
-.idx table{width:185mm;border-collapse:collapse;table-layout:fixed;font-size:7.5pt;line-height:1.25}
+.idx table{width:185mm;border-collapse:collapse;table-layout:fixed;font-size:8.5pt;line-height:1.25}
 .idx th,.idx td{border:.12mm solid #000;padding:.4mm .6mm;text-align:center;vertical-align:middle;overflow:hidden;overflow-wrap:anywhere}
 .idx th{background:#eee;font-weight:700;height:9mm;font-size:8pt}
 .idx td{height:8.3mm}
 .idx td.l{text-align:left}
-.idx td.biz{font-weight:700;font-size:8pt;line-height:1.4}
 .idx td.n{text-align:right;font-variant-numeric:tabular-nums}
 .idx tr.sum td{font-weight:700;background:#f5f5f5}
 .idx .pg{margin-top:auto;text-align:center;font-size:9pt}
@@ -127,7 +126,7 @@ table.map input{border:0;padding:3px 4px;font-size:12px}
       <div style="display:grid;gap:8px;margin-top:8px">
         <div class="grid3">
           <label class="f">상자당 최대 농가 수(0=제한 없음)<input type="number" id="perBox" min="0"></label>
-          <label class="f">표지 시작 칸(1~3)<input type="number" id="startAt" min="1" max="3"></label>
+          <label class="f">표지 위치(원본 1~3번째 칸)<input type="number" id="startAt" min="1" max="3"></label>
           <label class="f">상자 라벨 시작 칸(1~4)<input type="number" id="boxStart" min="1" max="4"></label>
         </div>
         <div class="grid2">
@@ -187,7 +186,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 "use strict";
 // 원본 한글 서식 좌표(mm, 용지 왼쪽 위 기준). 본문 시작 = 왼쪽 7mm, 위 10mm(위 여백 5 + 머리말 5)
 const COVER_POS=[{x:44.5,y:52.3},{x:44.5,y:121.9},{x:44.5,y:191.4}];
-const BOX_POS=[{x:8,y:11},{x:103.1,y:11},{x:8,y:130.1},{x:103.1,y:130.1}];
+const BOX_POS=[{x:8,y:11},{x:103.1,y:11},{x:8,y:107.1},{x:103.1,y:107.1}];
 const INDEX_POS={x:11,y:10.5};
 const INDEX_ROWS=24;
 
@@ -387,19 +386,18 @@ const at=(pos,inner)=>`<div class="abs" style="left:${pos.x}mm;top:${pos.y}mm">$
 const sheetStyle=()=>`--dx:${+cfg.dx||0}mm;--dy:${+cfg.dy||0}mm`;
 
 function renderCovers(){
-  const items=[];for(let i=1;i<Math.min(3,+cfg.startAt||1);i++)items.push(null);
-  farms().forEach(f=>items.push(f));
+  const slot=Math.min(3,Math.max(1,+cfg.startAt||1))-1;
+  const items=farms();
   const n=items.filter(Boolean).length;
-  $("tabHint").textContent=`표지 ${n}장 · A4 한 장에 3개(원본 서식 위치, 121.0×60.8mm) · 인쇄 ${Math.ceil(items.length/3)}쪽 · 명단 순서대로`;
-  return chunk(items,3).map(pg=>`<div class="sheet" style="${sheetStyle()}">${pg.map((f,i)=>{
-    if(!f)return at(COVER_POS[i],`<div class="cover empty"></div>`);
+  $("tabHint").textContent=`표지 ${items.length}장 · A4 한 장에 1개(원본 서식 ${slot+1}번째 칸 위치, 121.0×60.8mm) · 인쇄 ${items.length}쪽 · 명단 순서대로`;
+  return items.map(f=>{
     const p=f.p;const bad=!p.task||!p.keep;
-    return at(COVER_POS[i],`<div class="cover${bad?" bad":""}">
+    return `<div class="sheet" style="${sheetStyle()}">${at(COVER_POS[slot],`<div class="cover${bad?" bad":""}">
       <div class="c1">${esc(cfg.orgCode)} – ${esc(p.task||"단위과제?")} - ${esc(p.keep||"보존기간?")}</div>
       ${p.card?`<div class="c2">${esc(p.card)}:</div>`:""}
       <div class="c3">${esc(p.coverTitle)}(${esc(f.r.name)})</div>
       <div class="c4">${esc(p.year)} - ${esc(p.year)}</div>
-      <div class="c5">${esc(cfg.dept)}</div></div>`)}).join("")}</div>`).join("");
+      <div class="c5">${esc(cfg.dept)}</div></div>`)}</div>`}).join("");
 }
 
 function renderIndex(rowsPer=INDEX_ROWS){
@@ -413,11 +411,11 @@ function renderIndex(rowsPer=INDEX_ROWS){
       <h3>색인목록</h3>
       <div class="t1">${files.map(x=>esc(x.text+" "+x.range)).join("<br>")}</div>
       <div class="meta"><span>분류번호 : ${esc(cfg.orgCode)}-${esc(b.p.task)} (보존기간 ${esc(b.p.keep)})</span><span>상자번호 : <span contenteditable data-box="${esc(b.id)}">${esc(boxNos[b.id]||"")}</span></span><span>(생산연도 : ${esc(b.p.year)}년)</span></div>
-      <table><colgroup><col style="width:6mm"><col style="width:16mm"><col style="width:12mm"><col style="width:14mm"><col style="width:33mm"><col style="width:18mm"><col style="width:21mm"><col style="width:8mm"><col style="width:12mm"><col style="width:12mm"><col style="width:12mm"><col style="width:21mm"></colgroup>
-      <thead><tr><th>번호</th><th>사업명</th><th>농가명</th><th>생년월일</th><th>주 소</th><th>연락처</th><th>사업소재지</th><th>사업량</th><th>총사업비<br>(${unit})</th><th>보조금<br>(${unit})</th><th>자부담<br>(${unit})</th><th>계좌번호</th></tr></thead>
-      <tbody>${pg.map((f,ri)=>{const r=f.r;const first=ri===0||pg[ri-1].p!==f.p;let span=0;if(first){while(ri+span<pg.length&&pg[ri+span].p===f.p)span++;}
-        return `<tr><td>${pi*rowsPer+ri+1}</td>${first?`<td class="biz" rowspan="${span}">${esc(f.p.name)}</td>`:""}<td>${esc(r.name)}</td><td>${esc(r.birth)}</td><td class="l">${esc(r.addr)}</td><td>${esc(r.tel)}</td><td class="l">${esc(r.site)}</td><td class="n">${esc(r.qty)}</td><td class="n">${esc(r.total)}</td><td class="n">${esc(r.sub)}</td><td class="n">${esc(r.self)}</td><td>${esc(r.acct)}</td></tr>`}).join("")}
-      ${pi===pgs.length-1?`<tr class="sum"><td colspan="3">합계</td><td colspan="4">${b.items.length}농가</td><td class="n">${fmt(tot.qty)}</td><td class="n">${fmt(tot.total)}</td><td class="n">${fmt(tot.sub)}</td><td class="n">${fmt(tot.self)}</td><td></td></tr>`:""}
+      <table><colgroup><col style="width:7mm"><col style="width:15mm"><col style="width:17mm"><col style="width:48mm"><col style="width:22mm"><col style="width:10mm"><col style="width:14mm"><col style="width:14mm"><col style="width:14mm"><col style="width:24mm"></colgroup>
+      <thead><tr><th>번호</th><th>농가명</th><th>생년월일</th><th>사업소재지<br>(없으면 주소)</th><th>연락처</th><th>사업량</th><th>총사업비<br>(${unit})</th><th>보조금<br>(${unit})</th><th>자부담<br>(${unit})</th><th>계좌번호</th></tr></thead>
+      <tbody>${pg.map((f,ri)=>{const r=f.r;
+        return `<tr><td>${pi*rowsPer+ri+1}</td><td>${esc(r.name)}</td><td>${esc(r.birth)}</td><td class="l">${esc(r.site||r.addr)}</td><td>${esc(r.tel)}</td><td class="n">${esc(r.qty)}</td><td class="n">${esc(r.total)}</td><td class="n">${esc(r.sub)}</td><td class="n">${esc(r.self)}</td><td>${esc(r.acct)}</td></tr>`}).join("")}
+      ${pi===pgs.length-1?`<tr class="sum"><td colspan="3">합계</td><td colspan="2">${b.items.length}농가</td><td class="n">${fmt(tot.qty)}</td><td class="n">${fmt(tot.total)}</td><td class="n">${fmt(tot.sub)}</td><td class="n">${fmt(tot.self)}</td><td></td></tr>`:""}
       </tbody></table>
       ${pgs.length>1?`<div class="pg">${pi+1} / ${pgs.length}</div>`:""}
     </div>`)}</div>`).join("");
@@ -428,17 +426,17 @@ function renderIndex(rowsPer=INDEX_ROWS){
 
 function renderBoxes(){
   const bx=boxes();const items=[];for(let i=1;i<Math.min(4,+cfg.boxStart||1);i++)items.push(null);bx.forEach(b=>items.push(b));
-  $("tabHint").textContent=`상자 라벨 ${bx.length}개 · A4 한 장에 4개(원본 서식 위치, 93.1×115.0mm) · 상자번호 칸을 클릭해 입력`;
+  $("tabHint").textContent=`상자 라벨 ${bx.length}개 · A4 한 장에 4개(93.1×92.0mm, 원본 세로의 80%) · 상자번호 칸을 클릭해 입력`;
   return chunk(items,4).map(pg=>`<div class="sheet" style="${sheetStyle()}">${pg.map((b,i)=>{
     if(!b)return "";
     const files=boxFiles(b);const lines=files.length*2;
-    const fs=lines>8?"10.5pt":lines>6?"12pt":"14pt";
+    const fs=lines>8?"9pt":lines>6?"10.5pt":lines>4?"12pt":"14pt";
     return at(BOX_POS[i],`<table class="box">
-      <tr style="height:10mm"><td class="h">상자번호</td><td class="v" contenteditable data-box="${esc(b.id)}">${esc(boxNos[b.id]||"")}</td></tr>
-      <tr style="height:10mm"><td class="h">생산연도</td><td class="v">${esc(b.p.year)}년</td></tr>
-      <tr style="height:10mm"><td class="h">생산기관</td><td class="v">${esc(cfg.orgName)}</td></tr>
-      <tr style="height:15.8mm"><td class="h">단위과제<br>(보존기간)</td><td class="v">${esc(b.p.task||"단위과제?")}<br>(${esc(b.p.keep||"보존기간?")})</td></tr>
-      <tr style="height:69.2mm"><td class="h">기록물철<br>(단위과제<br>카드명)</td><td class="list" style="font-size:${fs}">${files.map(x=>`<div>${esc(x.text)}</div><div>${esc(x.range)}</div>`).join("")}</td></tr>
+      <tr style="height:8mm"><td class="h">상자번호</td><td class="v" contenteditable data-box="${esc(b.id)}">${esc(boxNos[b.id]||"")}</td></tr>
+      <tr style="height:8mm"><td class="h">생산연도</td><td class="v">${esc(b.p.year)}년</td></tr>
+      <tr style="height:8mm"><td class="h">생산기관</td><td class="v">${esc(cfg.orgName)}</td></tr>
+      <tr style="height:12.64mm;line-height:1.08"><td class="h">단위과제<br>(보존기간)</td><td class="v">${esc(b.p.task||"단위과제?")}<br>(${esc(b.p.keep||"보존기간?")})</td></tr>
+      <tr style="height:55.06mm"><td class="h">기록물철<br>(단위과제<br>카드명)</td><td class="list" style="font-size:${fs}">${files.map(x=>`<div>${esc(x.text)}</div><div>${esc(x.range)}</div>`).join("")}</td></tr>
     </table>`)}).join("")}</div>`).join("");
 }
 
