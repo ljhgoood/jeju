@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>기록물철 라벨 생성기</title>
 <style>
-/* 레이아웃: 왼쪽 입력·검증 패널, 오른쪽 A4 인쇄 미리보기. 인쇄 시 미리보기만 출력 */
+/* 레이아웃: 왼쪽 입력·검증 패널, 오른쪽 A4 실측 미리보기. 라벨 위치·크기는 원본 한글 서식(표선면)에서 읽은 mm 값 사용 */
 :root{
   --bg:#eef1ee; --panel:#ffffff; --ink:#1d2a24; --muted:#5f6f67; --line:#cfd8d2;
   --accent:#2f6b4f; --accent-soft:#e3efe8; --warn:#9a5b00; --warn-bg:#fff4e0; --bad:#a3261f; --bad-bg:#fde9e7; --ok:#2f6b4f;
   --ui:"Malgun Gothic","맑은 고딕","Apple SD Gothic Neo","Noto Sans KR",sans-serif;
-  --doc:"Batang","바탕","HCR Batang","Noto Serif KR",serif;
+  --doc:"함초롬바탕","HCR Batang","Batang","바탕","Noto Serif KR",serif;
 }
 *{box-sizing:border-box}
 html,body{margin:0}
@@ -19,7 +19,6 @@ body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--ui)}
 @media (max-width:900px){.app{grid-template-columns:1fr}}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px;display:grid;gap:14px;min-width:0}
 h1{font-size:18px;margin:0}
-h2{font-size:14px;margin:0;color:var(--accent);letter-spacing:.02em}
 .sub{color:var(--muted);font-size:12.5px;margin:0}
 .drop{border:2px dashed var(--line);border-radius:6px;padding:18px;text-align:center;cursor:pointer;background:#fafcfb}
 .drop.over{border-color:var(--accent);background:var(--accent-soft)}
@@ -53,38 +52,49 @@ table.map input{border:0;padding:3px 4px;font-size:12px}
 .preview{min-width:0;overflow-x:auto;display:grid;gap:16px;justify-items:center}
 .hint{font-size:12px;color:var(--muted)}
 
-/* ===== 인쇄 시트 ===== */
-.sheet{width:210mm;min-height:297mm;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.18);padding:10mm;color:#000;font-family:var(--doc)}
-.lblgrid{display:grid;gap:var(--gap,4mm);justify-content:center;align-content:start}
-.lbl{width:var(--w);height:var(--h);border:1px solid #000;padding:3mm 4mm;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;font-family:var(--doc)}
-.lbl .l1{font-size:10.5pt;font-weight:700;letter-spacing:.02em}
-.lbl .l2{font-size:var(--fs2,12pt);font-weight:700;line-height:1.3;overflow-wrap:anywhere}
-.lbl .l3{font-size:10pt}
-.lbl .l4,.lbl .l5{font-size:10pt}
-.lbl .foot{display:flex;justify-content:space-between;align-items:flex-end;gap:4mm}
-.lbl.bad{outline:2px solid var(--bad);outline-offset:-2px}
-.idx h3{text-align:center;font-size:16pt;letter-spacing:.6em;text-decoration:underline;margin:0 0 3mm}
-.idx .meta{text-align:center;font-size:11pt;line-height:1.6;margin-bottom:4mm}
-.idx table{width:100%;border-collapse:collapse;font-size:9.5pt;table-layout:fixed}
-.idx th,.idx td{border:1px solid #000;padding:1.2mm 1mm;text-align:center;height:10.5mm;overflow:hidden;overflow-wrap:anywhere}
-.idx th{background:#f0f0f0;font-weight:700;height:auto}
-.idx td.t{text-align:left}
-.box{width:var(--bw);border:1.5px solid #000;border-collapse:collapse;font-family:var(--doc);margin:0 auto 6mm}
-.box th,.box td{border:1px solid #000;padding:3mm;font-size:12pt;vertical-align:middle}
-.box th{width:32%;background:#f0f0f0;text-align:center;font-weight:700}
-.box td.no{font-size:20pt;font-weight:700;text-align:center;height:18mm}
-.box td ul{margin:0;padding-left:0;list-style:none;display:grid;gap:1.5mm}
+/* ===== A4 실측 시트: 모든 좌표 mm, 원점은 용지 왼쪽 위 ===== */
+.sheet{position:relative;width:210mm;height:297mm;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.18);color:#000;font-family:var(--doc);overflow:hidden;flex:none}
+.abs{position:absolute;transform:translate(var(--dx,0mm),var(--dy,0mm))}
+/* 기록물철 표지: 121.0 × 60.8mm, 셀 여백 0.5mm, 가운데 정렬, 함초롬바탕 굵게 */
+.cover{width:121mm;height:60.8mm;border:.12mm solid #000;padding:.5mm;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;font-weight:700;line-height:1.3;gap:1.2mm;overflow:hidden}
+.cover .c1,.cover .c4,.cover .c5{font-size:17pt}
+.cover .c2,.cover .c3{font-size:21pt}
+.cover .c3{overflow-wrap:anywhere;word-break:keep-all}
+.cover.empty{border-style:dashed;border-color:#bbb}
+.cover.bad{outline:2px solid var(--bad);outline-offset:-2px}
+/* 상자 라벨: 93.1 × 115.0mm, 2열 25.1/68.0mm, 행 10/10/10/15.8/69.2mm, 14pt */
+.box{width:93.1mm;height:115mm;border-collapse:collapse;table-layout:fixed;font-size:14pt;line-height:1.35}
+.box td{border:.12mm solid #000;padding:.5mm 1.5mm;vertical-align:middle;overflow:hidden}
+.box td.h{width:25.1mm;text-align:center;font-weight:700;padding:.5mm}
+.box td.v{text-align:center}
+.box td.list{text-align:left;vertical-align:middle}
+.box td.list div{overflow-wrap:anywhere}
+/* 색인목록: 외곽 188 × 258mm */
+.idx{width:188mm;height:258mm;border:.12mm solid #000;padding:4mm 1.5mm 2mm;display:flex;flex-direction:column}
+.idx h3{text-align:center;font-size:16pt;font-weight:700;letter-spacing:.5em;margin:0 0 2mm;text-decoration:underline;text-underline-offset:1.5mm}
+.idx .t1{text-align:center;font-size:13pt;font-weight:700;margin-bottom:2mm;overflow-wrap:anywhere}
+.idx .meta{display:flex;justify-content:space-between;font-size:10pt;margin-bottom:2mm;gap:4mm}
+.idx table{width:185mm;border-collapse:collapse;table-layout:fixed;font-size:7.5pt;line-height:1.25}
+.idx th,.idx td{border:.12mm solid #000;padding:.4mm .6mm;text-align:center;vertical-align:middle;overflow:hidden;overflow-wrap:anywhere}
+.idx th{background:#eee;font-weight:700;height:9mm;font-size:8pt}
+.idx td{height:8.3mm}
+.idx td.l{text-align:left}
+.idx td.biz{font-weight:700;font-size:8pt;line-height:1.4}
+.idx td.n{text-align:right;font-variant-numeric:tabular-nums}
+.idx tr.sum td{font-weight:700;background:#f5f5f5}
+.idx .pg{margin-top:auto;text-align:center;font-size:9pt}
 [contenteditable]:focus{outline:1px dashed var(--accent);background:#f7fbf8}
 
-@page{size:A4;margin:0}
+@page{size:A4 portrait;margin:0}
 @media print{
   body{background:#fff}
   .app{display:block;padding:0}
   .panel,.hint,.no-print{display:none!important}
   .preview{display:block;overflow:visible}
-  .sheet{box-shadow:none;page-break-after:always;break-after:page;min-height:auto;height:297mm}
+  .sheet{box-shadow:none;page-break-after:always;break-after:page}
   .sheet:last-child{page-break-after:auto;break-after:auto}
-  .lbl.bad{outline:none}
+  .cover.bad{outline:none}
+  .cover.empty{border:0}
   [contenteditable]:focus{outline:none;background:none}
 }
 </style>
@@ -94,7 +104,7 @@ table.map input{border:0;padding:3px 4px;font-size:12px}
   <section class="panel" aria-label="입력">
     <div>
       <h1>기록물철 라벨 생성기</h1>
-      <p class="sub">사업완료 명단 엑셀을 올리면 명단 순서대로 기록물철 표지·색인목록·상자 라벨을 만듭니다. 파일은 이 PC 안에서만 읽고 외부로 전송하지 않습니다.</p>
+      <p class="sub">사업완료 명단 엑셀을 올리면 농가별 기록물철 표지, 상자별 색인목록, 상자 라벨을 명단 순서대로 만듭니다. 파일은 이 PC 안에서만 읽고 외부로 전송하지 않습니다.</p>
     </div>
 
     <div class="drop" id="drop" tabindex="0" role="button" aria-label="엑셀 파일 선택">
@@ -116,18 +126,15 @@ table.map input{border:0;padding:3px 4px;font-size:12px}
       <summary>출력 설정</summary>
       <div style="display:grid;gap:8px;margin-top:8px">
         <div class="grid3">
-          <label class="f">표지 라벨 가로(mm)<input type="number" id="labelW" min="40" max="190"></label>
-          <label class="f">표지 라벨 세로(mm)<input type="number" id="labelH" min="25" max="277"></label>
-          <label class="f">철당 최대 건수(0=분철 안 함)<input type="number" id="perVol" min="0"></label>
+          <label class="f">상자당 최대 농가 수(0=제한 없음)<input type="number" id="perBox" min="0"></label>
+          <label class="f">표지 시작 칸(1~3)<input type="number" id="startAt" min="1" max="3"></label>
+          <label class="f">상자 라벨 시작 칸(1~4)<input type="number" id="boxStart" min="1" max="4"></label>
         </div>
         <div class="grid2">
-          <label class="f">색인목록 제목 형식 ({성명}, {사업명} 사용)<input type="text" id="titleTpl"></label>
-          <label class="f">색인목록 받은기관<input type="text" id="recvOrg"></label>
+          <label class="f">인쇄 위치 보정 가로(mm, +오른쪽)<input type="number" id="dx" step="0.5"></label>
+          <label class="f">인쇄 위치 보정 세로(mm, +아래)<input type="number" id="dy" step="0.5"></label>
         </div>
-        <div class="grid2">
-          <label class="f">상자 라벨 가로(mm)<input type="number" id="boxW" min="80" max="190"></label>
-          <label class="f">라벨 시작 칸(라벨지 일부 사용 시)<input type="number" id="startAt" min="1"></label>
-        </div>
+        <p class="hint" style="margin:0">프린터마다 출력 위치가 1~3mm 어긋날 수 있습니다. 시험 인쇄 후 보정값을 넣으면 모든 라벨이 함께 이동합니다.</p>
       </div>
     </details>
 
@@ -142,7 +149,7 @@ table.map input{border:0;padding:3px 4px;font-size:12px}
   <section style="display:grid;gap:10px;min-width:0">
     <div class="row no-print" style="justify-content:space-between">
       <nav class="tabs" id="tabs">
-        <button data-tab="label" class="on">기록물철 표지</button>
+        <button data-tab="cover" class="on">기록물철 표지</button>
         <button data-tab="index">색인목록</button>
         <button data-tab="box">상자 라벨</button>
       </nav>
@@ -178,8 +185,12 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 </script>
 <script>
 "use strict";
-const CIRCLED="①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳";
-// 기본 연계표: 사용자가 제공한 기존 라벨(표선면·감귤농정과)에서 확인된 조합
+// 원본 한글 서식 좌표(mm, 용지 왼쪽 위 기준). 본문 시작 = 왼쪽 7mm, 위 10mm(위 여백 5 + 머리말 5)
+const COVER_POS=[{x:44.5,y:52.3},{x:44.5,y:121.9},{x:44.5,y:191.4}];
+const BOX_POS=[{x:8,y:11},{x:103.1,y:11},{x:8,y:130.1},{x:103.1,y:130.1}];
+const INDEX_POS={x:11,y:10.5};
+const INDEX_ROWS=24;
+
 const DEFAULT_MAP=[
   {kw:"재난방지",task:"친환경농업일반",card:"",keep:"5년"},
   {kw:"수정벌",task:"친환경농업일반",card:"",keep:"5년"},
@@ -190,23 +201,28 @@ const DEFAULT_MAP=[
   {kw:"비닐하우스|채소화훼",task:"채소화훼경쟁력제고",card:"",keep:"5년"},
   {kw:"농지취득",task:"농지취득자격증명발급",card:"",keep:""}
 ];
-const DEFAULT_CFG={orgCode:"6520032",orgName:"표선면사무소",dept:"표선면(산업팀)",labelW:93,labelH:55,perVol:0,
-  titleTpl:"{성명} 사업완료 서류",recvOrg:"표선면",boxW:180,startAt:1};
+const DEFAULT_CFG={orgCode:"6520032",orgName:"표선면사무소",dept:"표선면(산업팀)",perBox:0,startAt:1,boxStart:1,dx:0,dy:0};
 const SAMPLE_ROWS=[
   ["2026년 과수·과채류 하우스 재난방지시스템 사업완료내역(표선면 1차)"],
-  ["번호","읍면동","사업농가"],["","","성명","생년월일"],["","","5농가"],
-  ["1","표선면","홍길동"],["2","표선면","김예시"],["3","표선면","이샘플"],["4","표선면","박가상"],["5","표선면","최테스트"]
+  ["번호","읍면동","사업농가","","","","사업 내용","","","교부결정 내역(천원)","","","사업완료 내역(천원)","","","","","통장내역","",""],
+  ["","","성명","생년월일","주  소","연락처","사업 소재지","면적(㎡)","사업량 (대)","계","보조 (60%)","자부담(40%)","사업소재지","면적(㎡)","계","보조(60%)","자부담(40%)","은행","계좌번호","예금주"],
+  ["","","3농가"],
+  ["1","표선면","홍길동","19600101","서귀포시 표선면 예시로 1","010-0000-0001","표선면 가시리 1","10,000","1","1,100","660","440","표선면 가시리 1","10,000","1,100","660","440","농협","000-0000-0000-01","홍길동"],
+  ["2","표선면","김예시","19650505","서귀포시 표선면 예시로 2","010-0000-0002","표선면 토산리 2","8,000","2","2,200","1,320","880","표선면 토산리 2","8,000","2,200","1,320","880","농협","000-0000-0000-02","김예시"],
+  ["3","표선면","이샘플","19701010","서귀포시 남원읍 예시로 3","010-0000-0003","표선면 세화리 3","12,000","1","1,100","660","440","표선면 세화리 3","12,000","1,100","660","440","농협","000-0000-0000-03","이샘플"]
 ];
 
 const $=id=>document.getElementById(id);
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},
              set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
-let cfg=Object.assign({},DEFAULT_CFG,store.get("rl.cfg",{}));
+let cfg=Object.assign({},DEFAULT_CFG,store.get("rl2.cfg",{}));
 let map=store.get("rl.map",null)||DEFAULT_MAP.map(m=>({...m}));
-let projects=[]; let tab="label"; let boxNos=store.get("rl.boxNos",{}); let isSample=true;
+let projects=[]; let tab="cover"; let boxNos=store.get("rl.boxNos",{});
 
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const norm=s=>String(s||"").replace(/[\s·ㆍ・.,()\-]/g,"").toLowerCase();
+const num=s=>{const v=parseFloat(String(s||"").replace(/[,\s]/g,""));return isFinite(v)?v:0};
+const fmt=n=>n.toLocaleString("ko-KR");
 
 function findMap(name){
   const n=norm(name);
@@ -218,103 +234,122 @@ function parseTitle(t){
   const title=String(t||"").trim();
   const y=(title.match(/(20\d{2})\s*년/)||[])[1]||"";
   const round=(title.match(/(\d+)\s*차/)||[])[1]||"";
-  let name=title.replace(/20\d{2}\s*년(도)?/,"").replace(/\([^)]*\)/g,"")
+  const name=title.replace(/20\d{2}\s*년(도)?/,"").replace(/\([^)]*\)/g,"")
     .replace(/(사업)?\s*(완료|신청|선정|지원|교부|정산)?\s*(내역|명단|현황|대장)\s*$/,"").trim();
-  if(!/사업$/.test(name)&&!/사업\s/.test(name)) name=name.replace(/\s+$/,"");
   return {year:y,round,name};
 }
-const NAME_KEYS=["성명","농가명","사업자명","대표자","신청인","사업농가","성 명"];
+const NAME_KEYS=["성명","농가명","사업자명","대표자","신청인","성명(대표자)"];
 const SKIP_RE=/^(합계|소계|계|총계|누계)$|^\d+\s*(농가|명|건|개소)$|^[\d,\s.]+$/;
+const fmtBirth=b=>{const d=String(b||"").replace(/\D/g,"");
+  if(d.length===8)return `${d.slice(0,4)}.${d.slice(4,6)}.${d.slice(6)}`;
+  if(d.length===6)return `${d.slice(0,2)}.${d.slice(2,4)}.${d.slice(4)}`;return String(b||"")};
 
 function sheetToProject(rows,sheetName,fileName){
   rows=rows.map(r=>r.map(c=>String(c??"").replace(/\r?\n/g," ").trim()));
   let hr=-1,nc=-1;
-  outer: for(let i=0;i<Math.min(rows.length,15);i++){
-    for(const key of NAME_KEYS){
-      const j=rows[i].findIndex(c=>c.replace(/\s/g,"")===key.replace(/\s/g,""));
-      if(j>=0){hr=i;nc=j; if(key!=="사업농가")break outer;}
-    }
-    if(hr>=0&&rows[hr][nc].replace(/\s/g,"")!=="사업농가")break;
+  for(let i=0;i<Math.min(rows.length,15)&&hr<0;i++){
+    const j=rows[i].findIndex(c=>NAME_KEYS.includes(c.replace(/\s/g,"")));
+    if(j>=0){hr=i;nc=j;}
   }
-  // "사업농가"가 병합 상단이고 바로 아래에 "성명"이 있으면 아래 행 사용
-  if(hr>=0&&rows[hr+1]&&rows[hr+1][nc]&&rows[hr+1][nc].replace(/\s/g,"")==="성명")hr=hr+1;
   if(hr<0) return null;
+  // 2단 헤더: 윗줄(병합 제목)은 오른쪽으로 이어 채워 "그룹|항목" 형태로 만든다
+  const width=Math.max(...rows.slice(0,hr+1).map(r=>r.length));
+  const grp=[];let carry="";
+  for(let j=0;j<width;j++){const g=hr>0?(rows[hr-1][j]||""):"";if(g)carry=g;grp.push(hr>0?carry:"");}
+  const cols=Array.from({length:width},(_,j)=>({j,g:norm(grp[j]),s:norm(rows[hr][j]||"")||norm(grp[j])}));
+  const pick=(re,prefs=[/완료/,/교부|결정/,/./])=>{
+    const hits=cols.filter(c=>re.test(c.s));
+    const out=[];prefs.forEach(p=>hits.forEach(c=>{if(p.test(c.g||"x")&&!out.includes(c.j))out.push(c.j)}));
+    hits.forEach(c=>{if(!out.includes(c.j))out.push(c.j)});return out;
+  };
+  const C={birth:pick(/생년월일|주민/),addr:pick(/^주소$|^주소지$/),tel:pick(/연락처|전화|휴대/),
+    site:pick(/소재지/),qty:pick(/사업량|수량/),total:pick(/^계$|총사업비|^사업비/),
+    sub:pick(/^보조/),self:pick(/^자부담/),bank:pick(/은행/),acct:pick(/계좌/)};
+  const unit=cols.some(c=>c.j!==nc&&/천원/.test(c.g))?"천원":"원";
+  const val=(r,list)=>{for(const j of list){const v=r[j];if(v!=null&&v!=="")return v}return ""};
   let title="";
-  for(let i=0;i<hr;i++){const c=rows[i].find(x=>x);if(c&&c.length>6){title=c;break;}}
+  for(let i=0;i<hr;i++){const c=rows[i].find(x=>x);if(c&&c.length>6&&!/번호/.test(c)){title=c;break;}}
   if(!title)title=sheetName;
-  const numCol=rows.slice(0,hr+1).some(r=>r[0]&&r[0].replace(/\s/g,"")==="번호")?0:-1;
-  const names=[];let skipped=0;let declared=null;
+  const recs=[];let skipped=0;let declared=null;
   for(let i=hr+1;i<rows.length;i++){
-    const v=rows[i][nc]||"";
-    if(!v){ if(rows[i].some(x=>x))skipped++; continue;}
-    const m=v.match(/^(\d+)\s*(농가|명|건)$/); if(m){declared=+m[1];continue;}
+    const r=rows[i];const v=r[nc]||"";
+    if(!v){if(r.some(x=>x))skipped++;continue;}
+    const m=v.match(/^(\d+)\s*(농가|명|건)$/);if(m){declared=+m[1];continue;}
     if(SKIP_RE.test(v)){skipped++;continue;}
-    if(numCol===0&&rows[i][0]&&!/^\d+$/.test(rows[i][0].replace(/[\s.]/g,""))&&/계/.test(rows[i][0])){skipped++;continue;}
-    names.push(v);
+    recs.push({name:v,birth:fmtBirth(val(r,C.birth)),addr:val(r,C.addr),tel:val(r,C.tel),site:val(r,C.site).replace(/\s+/g," "),
+      qty:val(r,C.qty),total:val(r,C.total),sub:val(r,C.sub),self:val(r,C.self),
+      acct:[val(r,C.bank),val(r,C.acct)].filter(Boolean).join(" ")});
   }
-  const t=parseTitle(title);
-  const mp=findMap(t.name||title);
-  const fileTitle=(t.name||title)+" 신청서"+(t.round?`(${t.round}차)`:"");
+  const t=parseTitle(title);const name=t.name||title;
+  const mp=findMap(name);
   return {id:Math.random().toString(36).slice(2),file:fileName,sheet:sheetName,title,year:t.year||String(new Date().getFullYear()),
-    name:t.name||title,fileTitle,task:mp?mp.task:"",card:mp?mp.card:"",keep:mp?mp.keep:"",mapped:!!mp,
-    names,declared,skipped,include:true};
+    name,coverTitle:name+(/사업$/.test(name)?"":" 지원사업"),boxTitle:name+" 신청서"+(t.round?`(${t.round}차)`:""),
+    task:mp?mp.task:"",card:mp?mp.card:"",keep:mp?mp.keep:"",mapped:!!mp,unit,
+    found:Object.fromEntries(Object.entries(C).map(([k,v])=>[k,v.length>0])),
+    recs,declared,skipped,include:true};
 }
 
 async function readFiles(files){
   const out=[];const errs=[];
   for(const f of files){
     try{
-      const buf=await f.arrayBuffer();
-      const wb=XLSX.read(buf,{type:"array"});
+      const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});
       for(const sn of wb.SheetNames){
-        const ws=wb.Sheets[sn];
-        const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:""});
+        const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:false,defval:""});
         const p=sheetToProject(rows,sn,f.name);
-        if(p&&p.names.length)out.push(p);
+        if(p&&p.recs.length)out.push(p);
       }
     }catch(e){errs.push(f.name+": "+e.message)}
   }
   if(!out.length){alert("성명 열을 찾지 못했습니다. 헤더에 '성명' 칸이 있는 명단인지 확인하세요."+(errs.length?"\n"+errs.join("\n"):""));return;}
-  projects=out;isSample=false;$("sampleBanner").hidden=true;render();
+  projects=out;$("sampleBanner").hidden=true;render();
 }
 
-// ---------- 분철 ----------
-function volumes(){
-  const vols=[];
-  for(const p of projects.filter(p=>p.include)){
-    const per=+cfg.perVol>0?+cfg.perVol:p.names.length||1;
-    const chunks=[];for(let i=0;i<p.names.length;i+=per)chunks.push(p.names.slice(i,i+per));
-    if(!chunks.length)chunks.push([]);
-    chunks.forEach((c,i)=>vols.push({p,names:c,start:i*per,vol:chunks.length>1?CIRCLED[i]||`(${i+1})`:"",total:chunks.length}));
-  }
-  return vols;
+// ---------- 농가 목록·상자 묶음 (명단 순서 유지) ----------
+function farms(){const a=[];projects.filter(p=>p.include).forEach(p=>p.recs.forEach((r,i)=>a.push({p,r,i})));return a}
+function boxes(){
+  const out=[];const per=+cfg.perBox>0?+cfg.perBox:Infinity;let cur=null;
+  farms().forEach(f=>{
+    const k=f.p.year+"|"+f.p.task+"|"+f.p.keep;
+    if(!cur||cur.k!==k||cur.items.length>=per){cur={k,p:f.p,items:[]};out.push(cur);}
+    cur.items.push(f);
+  });
+  const cnt={};out.forEach(b=>{cnt[b.k]=(cnt[b.k]||0)+1;b.seq=cnt[b.k];});
+  out.forEach(b=>{b.id=b.k+"|"+b.seq;b.multi=cnt[b.k]>1;});
+  return out;
 }
-function volTitle(v){return v.p.fileTitle+v.vol}
-function range(v){return v.names.length?`(${v.names[0]}${v.names.length>1?" ~ "+v.names[v.names.length-1]:""})`:""}
+function boxFiles(b){ // 상자 안 기록물철을 사업별로 묶어 "철명 (첫 ~ 끝)" 목록으로
+  const g=[];b.items.forEach(f=>{let x=g[g.length-1];if(!x||x.p!==f.p){x={p:f.p,names:[]};g.push(x);}x.names.push(f.r.name);});
+  return g.map(x=>({text:(x.p.card?x.p.card+": ":"")+x.p.boxTitle,range:`(${x.names[0]}${x.names.length>1?" ~ "+x.names[x.names.length-1]:""})`,n:x.names.length}));
+}
 
 // ---------- 검증 ----------
 function checks(p){
-  const c=[];
-  c.push({t:`${p.names.length}건`,k:""});
-  if(p.declared!=null&&p.declared!==p.names.length)c.push({t:`합계행 ${p.declared}건과 불일치`,k:"bad"});
+  const c=[{t:`${p.recs.length}농가`,k:""}];
+  if(p.declared!=null&&p.declared!==p.recs.length)c.push({t:`합계행 ${p.declared}농가와 불일치`,k:"bad"});
   if(!p.task)c.push({t:"단위과제 미지정",k:"bad"});
   if(!p.keep)c.push({t:"보존기간 미지정",k:"bad"});
   if(!/^20\d{2}$/.test(p.year))c.push({t:"생산연도 확인",k:"bad"});
-  const seen={},dup=[];p.names.forEach(n=>{if(seen[n])dup.push(n);seen[n]=1});
+  const seen={},dup=[];p.recs.forEach(r=>{if(seen[r.name])dup.push(r.name);seen[r.name]=1});
   if(dup.length)c.push({t:"중복 성명: "+[...new Set(dup)].join(", "),k:"warn"});
+  const miss={birth:"생년월일",addr:"주소",tel:"연락처",site:"사업소재지",qty:"사업량",total:"총사업비",sub:"보조금",self:"자부담",acct:"계좌번호"};
+  const m=Object.keys(miss).filter(k=>!p.found[k]).map(k=>miss[k]);
+  if(m.length)c.push({t:"열 못 찾음: "+m.join(", "),k:"warn"});
+  const s=p.recs.reduce((a,r)=>a+Math.abs(num(r.total)-num(r.sub)-num(r.self)),0);
+  if(p.found.total&&p.found.sub&&p.found.self&&s>0.5)c.push({t:"총사업비 ≠ 보조+자부담 행 있음",k:"bad"});
   if(p.skipped)c.push({t:`빈·합계 행 ${p.skipped}개 제외`,k:"warn"});
   if(p.mapped)c.push({t:"연계표 자동 적용",k:""});
   return c;
 }
 
-// ---------- 화면 ----------
+// ---------- 입력 패널 ----------
 function renderProjects(){
-  const el=$("projects");
-  el.innerHTML=projects.map(p=>`
+  $("projects").innerHTML=projects.map(p=>`
   <div class="proj" data-id="${p.id}">
     <header><span>${esc(p.file?p.file+" › ":"")}${esc(p.sheet)}</span>
       <label class="row" style="font-size:12px;gap:4px"><input type="checkbox" data-k="include" ${p.include?"checked":""}>출력</label></header>
-    <label class="f">기록물철명<input type="text" data-k="fileTitle" value="${esc(p.fileTitle)}"></label>
+    <label class="f">표지 기록물철명 (뒤에 "(농가명)"이 자동으로 붙음)<input type="text" data-k="coverTitle" value="${esc(p.coverTitle)}"></label>
+    <label class="f">상자 라벨·색인목록 철명<input type="text" data-k="boxTitle" value="${esc(p.boxTitle)}"></label>
     <div class="grid3">
       <label class="f">단위과제<input type="text" data-k="task" value="${esc(p.task)}"></label>
       <label class="f">단위과제카드명<input type="text" data-k="card" value="${esc(p.card)}"></label>
@@ -331,11 +366,10 @@ function onProjInput(e){
   const box=e.target.closest(".proj");if(!box)return;
   const p=projects.find(x=>x.id===box.dataset.id);const k=e.target.dataset.k;if(!p||!k)return;
   if(k==="include")p.include=e.target.checked;else p[k]=e.target.value;
-  if(k==="name"){const mp=findMap(p.name);if(mp){p.task=mp.task;p.card=mp.card;p.keep=mp.keep;p.mapped=true;}else p.mapped=false;renderProjects();}
-  else if(e.type==="change")renderProjects();
+  if(k==="name"&&e.type==="change"){const mp=findMap(p.name);if(mp){p.task=mp.task;p.card=mp.card;p.keep=mp.keep;p.mapped=true;}else p.mapped=false;}
+  if(e.type==="change")renderProjects();
   renderPreview();
 }
-
 function renderMap(){
   $("mapBody").innerHTML=map.map((m,i)=>`<tr data-i="${i}">
     <td><input type="text" data-k="kw" value="${esc(m.kw)}"></td><td><input type="text" data-k="task" value="${esc(m.task)}"></td>
@@ -347,72 +381,91 @@ function reapplyMap(){
   renderProjects();renderPreview();
 }
 
-function sheetsOf(items,perPage){const s=[];for(let i=0;i<items.length;i+=perPage)s.push(items.slice(i,i+perPage));return s.length?s:[[]]}
+// ---------- 출력물 ----------
+const chunk=(a,n)=>{const s=[];for(let i=0;i<a.length;i+=n)s.push(a.slice(i,i+n));return s.length?s:[[]]};
+const at=(pos,inner)=>`<div class="abs" style="left:${pos.x}mm;top:${pos.y}mm">${inner}</div>`;
+const sheetStyle=()=>`--dx:${+cfg.dx||0}mm;--dy:${+cfg.dy||0}mm`;
 
-function renderLabels(){
-  const W=+cfg.labelW||93,H=+cfg.labelH||55,G=4;
-  const cols=Math.max(1,Math.floor((190+G)/(W+G))),rows=Math.max(1,Math.floor((277+G)/(H+G)));
-  const per=cols*rows;
-  const items=[];for(let i=1;i<(+cfg.startAt||1);i++)items.push(null);
-  volumes().forEach(v=>items.push(v));
-  $("tabHint").textContent=`A4 한 장에 ${cols}×${rows} = ${per}칸 · 라벨 ${items.filter(Boolean).length}개 · 명단 순서대로 배치`;
-  return sheetsOf(items,per).map(pg=>`<div class="sheet"><div class="lblgrid" style="--w:${W}mm;--h:${H}mm;grid-template-columns:repeat(${cols},${W}mm)">${
-    pg.map(v=>{ if(!v)return `<div class="lbl" style="border-style:dotted;border-color:#bbb"></div>`;
-      const p=v.p;const bad=!p.task||!p.keep;
-      const t2=(p.card?p.card+": ":"")+volTitle(v);
-      const fs=t2.length>44?"10pt":t2.length>30?"11pt":"12pt";
-      return `<div class="lbl${bad?" bad":""}" style="--fs2:${fs}">
-        <div class="l1">${esc(cfg.orgCode)} – ${esc(p.task||"단위과제?")} – ${esc(p.keep||"보존기간?")}</div>
-        <div class="l2">${esc(t2)}</div>
-        <div class="l3">${esc(range(v))} ${v.names.length}건</div>
-        <div class="foot"><div class="l4">${esc(p.year)} - ${esc(p.year)}</div><div class="l5">${esc(cfg.dept)}</div></div>
-      </div>`}).join("")}</div></div>`).join("");
+function renderCovers(){
+  const items=[];for(let i=1;i<Math.min(3,+cfg.startAt||1);i++)items.push(null);
+  farms().forEach(f=>items.push(f));
+  const n=items.filter(Boolean).length;
+  $("tabHint").textContent=`표지 ${n}장 · A4 한 장에 3개(원본 서식 위치, 121.0×60.8mm) · 인쇄 ${Math.ceil(items.length/3)}쪽 · 명단 순서대로`;
+  return chunk(items,3).map(pg=>`<div class="sheet" style="${sheetStyle()}">${pg.map((f,i)=>{
+    if(!f)return at(COVER_POS[i],`<div class="cover empty"></div>`);
+    const p=f.p;const bad=!p.task||!p.keep;
+    return at(COVER_POS[i],`<div class="cover${bad?" bad":""}">
+      <div class="c1">${esc(cfg.orgCode)} – ${esc(p.task||"단위과제?")} - ${esc(p.keep||"보존기간?")}</div>
+      ${p.card?`<div class="c2">${esc(p.card)}:</div>`:""}
+      <div class="c3">${esc(p.coverTitle)}(${esc(f.r.name)})</div>
+      <div class="c4">${esc(p.year)} - ${esc(p.year)}</div>
+      <div class="c5">${esc(cfg.dept)}</div></div>`)}).join("")}</div>`).join("");
 }
 
-function renderIndex(){
-  const ROWS=20;const out=[];let total=0;
-  volumes().forEach(v=>{
-    const p=v.p;const recs=v.names.map((n,i)=>({no:i+1,n}));
-    sheetsOf(recs,ROWS).forEach((pg,pi,arr)=>{
-      const pad=ROWS-pg.length;total++;
-      out.push(`<div class="sheet idx">
-        <h3>색인목록</h3>
-        <div class="meta"><b>${esc(volTitle(v))}</b> ${esc(range(v))}<br>분류번호 : ${esc(cfg.orgCode)}-${esc(p.task)} · 보존기간 ${esc(p.keep)}<br>(생산연도 : ${esc(p.year)}년)${arr.length>1?` · ${pi+1}/${arr.length}쪽`:""}</div>
-        <table><colgroup><col style="width:8%"><col style="width:11%"><col style="width:9%"><col><col style="width:12%"><col style="width:11%"><col style="width:7%"><col style="width:7%"><col style="width:8%"></colgroup>
-        <thead><tr><th>일련<br>번호</th><th>일 자</th><th>등록<br>번호</th><th>제 목</th><th>보낸 기관</th><th>받은 기관</th><th>쪽<br>표시</th><th>전자<br>문서<br>여부</th><th>비 고</th></tr></thead>
-        <tbody>${pg.map(r=>`<tr><td>${r.no}</td><td contenteditable></td><td contenteditable></td><td class="t" contenteditable>${esc(cfg.titleTpl.replace(/\{성명\}/g,r.n).replace(/\{사업명\}/g,p.name))}</td><td contenteditable>${esc(r.n)}</td><td contenteditable>${esc(cfg.recvOrg)}</td><td contenteditable></td><td contenteditable></td><td contenteditable></td></tr>`).join("")}
-        `+Array.from({length:pad},()=>"<tr>"+"<td contenteditable></td>".repeat(9)+"</tr>").join("")+`</tbody></table></div>`);
-    });
-  });
-  $("tabHint").textContent=`색인목록 ${total}쪽 · 철별 1번부터 명단 순서대로 번호 부여 · 칸을 클릭하면 일자·등록번호 등을 직접 입력할 수 있습니다(재생성 시 초기화)`;
-  return out.join("");
+function renderIndex(rowsPer=INDEX_ROWS){
+  const bx=boxes();let pages=0;
+  const html=bx.map(b=>{
+    const units=[...new Set(b.items.map(f=>f.p.unit))];const unit=units.length===1?units[0]:"원";
+    const pgs=chunk(b.items,rowsPer);pages+=pgs.length;
+    const tot={qty:0,total:0,sub:0,self:0};b.items.forEach(f=>{tot.qty+=num(f.r.qty);tot.total+=num(f.r.total);tot.sub+=num(f.r.sub);tot.self+=num(f.r.self)});
+    const files=boxFiles(b);
+    return pgs.map((pg,pi)=>`<div class="sheet" style="${sheetStyle()}">${at(INDEX_POS,`<div class="idx">
+      <h3>색인목록</h3>
+      <div class="t1">${files.map(x=>esc(x.text+" "+x.range)).join("<br>")}</div>
+      <div class="meta"><span>분류번호 : ${esc(cfg.orgCode)}-${esc(b.p.task)} (보존기간 ${esc(b.p.keep)})</span><span>상자번호 : <span contenteditable data-box="${esc(b.id)}">${esc(boxNos[b.id]||"")}</span></span><span>(생산연도 : ${esc(b.p.year)}년)</span></div>
+      <table><colgroup><col style="width:6mm"><col style="width:16mm"><col style="width:12mm"><col style="width:14mm"><col style="width:33mm"><col style="width:18mm"><col style="width:21mm"><col style="width:8mm"><col style="width:12mm"><col style="width:12mm"><col style="width:12mm"><col style="width:21mm"></colgroup>
+      <thead><tr><th>번호</th><th>사업명</th><th>농가명</th><th>생년월일</th><th>주 소</th><th>연락처</th><th>사업소재지</th><th>사업량</th><th>총사업비<br>(${unit})</th><th>보조금<br>(${unit})</th><th>자부담<br>(${unit})</th><th>계좌번호</th></tr></thead>
+      <tbody>${pg.map((f,ri)=>{const r=f.r;const first=ri===0||pg[ri-1].p!==f.p;let span=0;if(first){while(ri+span<pg.length&&pg[ri+span].p===f.p)span++;}
+        return `<tr><td>${pi*rowsPer+ri+1}</td>${first?`<td class="biz" rowspan="${span}">${esc(f.p.name)}</td>`:""}<td>${esc(r.name)}</td><td>${esc(r.birth)}</td><td class="l">${esc(r.addr)}</td><td>${esc(r.tel)}</td><td class="l">${esc(r.site)}</td><td class="n">${esc(r.qty)}</td><td class="n">${esc(r.total)}</td><td class="n">${esc(r.sub)}</td><td class="n">${esc(r.self)}</td><td>${esc(r.acct)}</td></tr>`}).join("")}
+      ${pi===pgs.length-1?`<tr class="sum"><td colspan="3">합계</td><td colspan="4">${b.items.length}농가</td><td class="n">${fmt(tot.qty)}</td><td class="n">${fmt(tot.total)}</td><td class="n">${fmt(tot.sub)}</td><td class="n">${fmt(tot.self)}</td><td></td></tr>`:""}
+      </tbody></table>
+      ${pgs.length>1?`<div class="pg">${pi+1} / ${pgs.length}</div>`:""}
+    </div>`)}</div>`).join("");
+  }).join("");
+  $("tabHint").textContent=`색인목록 ${pages}쪽 · 상자 ${bx.length}개 · 상자 1개당 1장(한 장에 최대 ${rowsPer}농가, 넘으면 다음 장으로) · 개인정보 포함, 상자 안 비치용`;
+  return html;
 }
 
 function renderBoxes(){
-  const groups=[];const idx={};
-  volumes().forEach(v=>{const k=v.p.year+"|"+v.p.task+"|"+v.p.keep;if(!(k in idx)){idx[k]=groups.length;groups.push({k,p:v.p,vols:[]});}groups[idx[k]].vols.push(v);});
-  $("tabHint").textContent=`상자 ${groups.length}개 · 생산연도·단위과제·보존기간이 같은 철끼리 한 상자로 묶었습니다 · 상자번호 칸을 클릭해 입력`;
-  const html=groups.map(g=>`<table class="box" style="--bw:${+cfg.boxW||180}mm;width:${+cfg.boxW||180}mm">
-    <tr><th>상자번호</th><td class="no" contenteditable data-box="${esc(g.k)}">${esc(boxNos[g.k]||"")}</td></tr>
-    <tr><th>생산연도</th><td>${esc(g.p.year)}년</td></tr>
-    <tr><th>생산기관</th><td>${esc(cfg.orgName)}</td></tr>
-    <tr><th>단위과제<br>(보존기간)</th><td>${esc(g.p.task||"단위과제?")}<br>(${esc(g.p.keep||"보존기간?")})</td></tr>
-    <tr><th>기록물철<br>(단위과제카드명)</th><td><ul>${g.vols.map(v=>`<li>${esc((v.p.card?v.p.card+": ":"")+volTitle(v))} ${esc(range(v))}</li>`).join("")}</ul></td></tr>
-  </table>`);
-  // A4 한 장에 2개
-  return sheetsOf(html,2).map(pg=>`<div class="sheet">${pg.join("")}</div>`).join("");
+  const bx=boxes();const items=[];for(let i=1;i<Math.min(4,+cfg.boxStart||1);i++)items.push(null);bx.forEach(b=>items.push(b));
+  $("tabHint").textContent=`상자 라벨 ${bx.length}개 · A4 한 장에 4개(원본 서식 위치, 93.1×115.0mm) · 상자번호 칸을 클릭해 입력`;
+  return chunk(items,4).map(pg=>`<div class="sheet" style="${sheetStyle()}">${pg.map((b,i)=>{
+    if(!b)return "";
+    const files=boxFiles(b);const lines=files.length*2;
+    const fs=lines>8?"10.5pt":lines>6?"12pt":"14pt";
+    return at(BOX_POS[i],`<table class="box">
+      <tr style="height:10mm"><td class="h">상자번호</td><td class="v" contenteditable data-box="${esc(b.id)}">${esc(boxNos[b.id]||"")}</td></tr>
+      <tr style="height:10mm"><td class="h">생산연도</td><td class="v">${esc(b.p.year)}년</td></tr>
+      <tr style="height:10mm"><td class="h">생산기관</td><td class="v">${esc(cfg.orgName)}</td></tr>
+      <tr style="height:15.8mm"><td class="h">단위과제<br>(보존기간)</td><td class="v">${esc(b.p.task||"단위과제?")}<br>(${esc(b.p.keep||"보존기간?")})</td></tr>
+      <tr style="height:69.2mm"><td class="h">기록물철<br>(단위과제<br>카드명)</td><td class="list" style="font-size:${fs}">${files.map(x=>`<div>${esc(x.text)}</div><div>${esc(x.range)}</div>`).join("")}</td></tr>
+    </table>`)}).join("")}</div>`).join("");
 }
 
+// 표지 제목이 칸을 넘치면 글자 크기를 줄인다
+function fitCovers(){
+  document.querySelectorAll(".cover:not(.empty)").forEach(el=>{
+    let s=21;const t=el.querySelector(".c3"),c2=el.querySelector(".c2");
+    while(el.scrollHeight>el.clientHeight+1&&s>11){s-=1;t.style.fontSize=s+"pt";if(c2)c2.style.fontSize=s+"pt";}
+  });
+}
+// 색인목록이 외곽(258mm)을 넘치면 한 장당 줄 수를 줄여 다시 배치한다
+const overflowing=()=>[...document.querySelectorAll(".idx")].some(el=>el.scrollHeight>el.clientHeight+1);
 function renderPreview(){
-  const f={label:renderLabels,index:renderIndex,box:renderBoxes}[tab];
-  $("preview").innerHTML=f();
+  if(tab==="index"){
+    let n=INDEX_ROWS;$("preview").innerHTML=renderIndex(n);
+    while(overflowing()&&n>8){n--;$("preview").innerHTML=renderIndex(n);}
+    return;
+  }
+  $("preview").innerHTML={cover:renderCovers,box:renderBoxes}[tab]();
+  if(tab==="cover")fitCovers();
 }
 function render(){renderProjects();renderPreview();}
 
 // ---------- 이벤트 ----------
-["orgCode","orgName","dept","labelW","labelH","perVol","titleTpl","recvOrg","boxW","startAt"].forEach(k=>{
+["orgCode","orgName","dept","perBox","startAt","boxStart","dx","dy"].forEach(k=>{
   const el=$(k);el.value=cfg[k];
-  el.addEventListener("input",()=>{cfg[k]=el.type==="number"?el.value:el.value;store.set("rl.cfg",cfg);renderPreview();});
+  el.addEventListener("input",()=>{cfg[k]=el.value;store.set("rl2.cfg",cfg);renderPreview();});
 });
 $("projects").addEventListener("input",onProjInput);
 $("projects").addEventListener("change",onProjInput);
