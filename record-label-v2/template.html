@@ -51,6 +51,21 @@ table.map input{border:0;padding:3px 4px;font-size:12px}
 .mapwrap{overflow-x:auto}
 .preview{min-width:0;overflow-x:auto;display:grid;gap:16px;justify-items:center}
 .hint{font-size:12px;color:var(--muted)}
+.lbl-sm{font-size:12px;color:var(--muted);margin-bottom:4px}
+.sheet-list{display:grid;gap:3px;max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:5px;padding:4px}
+.sheet-row{display:flex;align-items:center;gap:4px;border-radius:4px}
+.sheet-row input{margin:0 2px 0 4px}
+.sheet-btn{flex:1;display:flex;align-items:center;gap:6px;text-align:left;border:0;background:none;padding:5px 8px;border-radius:4px;min-width:0}
+.sheet-btn:hover{background:#f4f7f5}
+.sheet-btn.on,.sheet-row.on .sheet-btn{background:var(--accent-soft);font-weight:600}
+.sheet-btn .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sheet-btn .ct{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--ok)}
+.dot.warn{background:#d99a2b}.dot.bad{background:var(--bad)}
+.filt{font-size:12.5px;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center}
+.filt b{color:var(--muted);font-weight:600}
+.opt{display:inline-flex;gap:3px;align-items:center}
+.opt small{color:var(--muted)}
 
 /* ===== A4 실측 시트: 모든 좌표 mm, 원점은 용지 왼쪽 위 ===== */
 .sheet{position:relative;width:210mm;height:297mm;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.18);color:#000;font-family:var(--doc);overflow:hidden;flex:none}
@@ -108,7 +123,7 @@ table.map input{border:0;padding:3px 4px;font-size:12px}
 
     <div class="drop" id="drop" tabindex="0" role="button" aria-label="엑셀 파일 선택">
       <b>엑셀 파일 선택</b> 또는 여기로 끌어놓기<br>
-      <span class="hint">.xlsx · .xls · 여러 파일 동시 선택 가능 · 시트마다 사업 1건으로 인식</span>
+      <span class="hint">.xlsx · .xls · 시트마다 사업 1건으로 인식 · 시트별로 서식이 달라도 열 이름으로 찾음</span>
       <input type="file" id="file" accept=".xlsx,.xls,.xlsm,.csv" multiple hidden>
     </div>
     <div class="banner" id="sampleBanner">지금 보이는 내용은 <b>예시 데이터</b>(가상 인물)입니다. 엑셀을 올리면 교체됩니다.</div>
@@ -119,6 +134,11 @@ table.map input{border:0;padding:3px 4px;font-size:12px}
       <label class="f">생산부서(담당)<input type="text" id="dept"></label>
     </div>
 
+    <p class="hint" id="skipNote" hidden></p>
+    <div>
+      <div class="lbl-sm">시트 (클릭해서 관리 · 체크 = 전체 인쇄에 포함)</div>
+      <div id="sheetList" class="sheet-list"></div>
+    </div>
     <div id="projects" style="display:grid;gap:10px"></div>
 
     <details>
@@ -207,83 +227,170 @@ function findMap(name){
 }
 
 // ---------- 엑셀 해석 ----------
+// 시트마다 헤더 줄 수·열 순서·금액 단위가 달라도 되도록, 헤더 영역 전체를 "그룹 › 항목" 경로로 읽고 이름으로 열을 찾는다.
 function parseTitle(t){
   const title=String(t||"").trim();
-  const y=(title.match(/(20\d{2})\s*년/)||[])[1]||"";
+  const ym=title.match(/(20\d{2}|\d{2})\s*년/);const y=ym?(ym[1].length===2?"20"+ym[1]:ym[1]):"";
   const round=(title.match(/(\d+)\s*차/)||[])[1]||"";
-  const name=title.replace(/20\d{2}\s*년(도)?/,"").replace(/\([^)]*\)/g,"")
-    .replace(/(사업)?\s*(완료|신청|선정|지원|교부|정산)?\s*(내역|명단|현황|대장)\s*$/,"").trim();
+  let name=title.replace(/(20\d{2}|\d{2})\s*년(도)?/,"").replace(/[(（][^)）]*[)）]/g,"").replace(/[(（][^)）]*$/,"").replace(/[【\[].*?[】\]]/g,"").trim();
+  for(let k=0;k<3;k++)name=name.replace(/\s*(대상자)?\s*(추가)?\s*(선정|확정|신청|완료|교부|정산|지급)?\s*(내역|명단|현황|대장|관리카드)\s*$/,"").replace(/\s*대상자\s*$/,"").trim();
   return {year:y,round,name};
 }
-const NAME_KEYS=["성명","농가명","사업자명","대표자","신청인","성명(대표자)"];
+const NAME_KEYS=["성명","농가명","사업자명","대표자","신청인","신청자","성명대표자","농가성명","대표자성명"];
 const SKIP_RE=/^(합계|소계|계|총계|누계)$|^\d+\s*(농가|명|건|개소)$|^[\d,\s.]+$/;
-const fmtBirth=b=>{const d=String(b||"").replace(/\D/g,"");
+const EXCL_STATUS=/포기|취소|탈락|후순위|미선정|불선정|제외|반려|철회|부적격|예정/;
+const isNumCell=v=>/^[\d,.\s%()-]+$/.test(v);
+function fmtBirth(b){
+  const s=String(b||"").trim();
+  const m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/); // 엑셀 날짜 서식(m/d/yy)
+  if(m){let y=+m[3];if(y<100)y+=y>+String(new Date().getFullYear()).slice(2)?1900:2000;return `${y}.${m[1].padStart(2,"0")}.${m[2].padStart(2,"0")}`;}
+  const d=s.replace(/\D/g,"");
   if(d.length===8)return `${d.slice(0,4)}.${d.slice(4,6)}.${d.slice(6)}`;
-  if(d.length===6)return `${d.slice(0,2)}.${d.slice(2,4)}.${d.slice(4)}`;return String(b||"")};
+  if(d.length===6||d.length===13){const yy=+d.slice(0,2);const y=(yy>+String(new Date().getFullYear()).slice(2)?1900:2000)+yy;return `${y}.${d.slice(2,4)}.${d.slice(4,6)}`;} // 주민번호는 앞 6자리만
+  return s;
+}
+const colName=j=>{let s="";j++;while(j>0){const m=(j-1)%26;s=String.fromCharCode(65+m)+s;j=Math.floor((j-1)/26);}return s};
 
 function sheetToProject(rows,sheetName,fileName){
   rows=rows.map(r=>r.map(c=>String(c??"").replace(/\r?\n/g," ").trim()));
   let hr=-1,nc=-1;
-  for(let i=0;i<Math.min(rows.length,15)&&hr<0;i++){
-    const j=rows[i].findIndex(c=>NAME_KEYS.includes(c.replace(/\s/g,"")));
+  for(let i=0;i<Math.min(rows.length,25)&&hr<0;i++){
+    const j=rows[i].findIndex(c=>NAME_KEYS.includes(norm(c)));
     if(j>=0){hr=i;nc=j;}
   }
-  if(hr<0) return null;
-  // 2단 헤더: 윗줄(병합 제목)은 오른쪽으로 이어 채워 "그룹|항목" 형태로 만든다
-  const width=Math.max(...rows.slice(0,hr+1).map(r=>r.length));
-  const grp=[];let carry="";
-  for(let j=0;j<width;j++){const g=hr>0?(rows[hr-1][j]||""):"";if(g)carry=g;grp.push(hr>0?carry:"");}
-  const cols=Array.from({length:width},(_,j)=>({j,g:norm(grp[j]),s:norm(rows[hr][j]||"")||norm(grp[j])}));
-  const pick=(re,prefs=[/완료/,/교부|결정/,/./])=>{
-    const hits=cols.filter(c=>re.test(c.s));
-    const out=[];prefs.forEach(p=>hits.forEach(c=>{if(p.test(c.g||"x")&&!out.includes(c.j))out.push(c.j)}));
-    hits.forEach(c=>{if(!out.includes(c.j))out.push(c.j)});return out;
+  if(hr<0)return null;
+  while(rows[hr+1]&&NAME_KEYS.includes(norm(rows[hr+1][nc])))hr++; // "신청자" 아래에 "성명"이 있으면 아래 줄이 실제 헤더
+  const isName=v=>!!v&&!SKIP_RE.test(v)&&!NAME_KEYS.includes(norm(v));
+  let d0=hr+1;while(d0<rows.length&&!isName(rows[d0][nc]))d0++;
+  const width=Math.max(...rows.slice(0,Math.min(rows.length,d0+1)).map(r=>r.length));
+  // 헤더 영역: 성명 행 위쪽 최대 2줄(제목처럼 한 칸짜리 줄은 제외) + 성명 행 + 첫 데이터 전까지의 보조 헤더
+  const band=[];
+  for(let i=Math.max(0,hr-2);i<hr;i++){const n=rows[i].filter(c=>c&&!isNumCell(c)).length;if(n>=2)band.push({i,carry:true});}
+  band.push({i:hr,carry:false});
+  for(let i=hr+1;i<d0;i++)band.push({i,carry:false});
+  const parts=Array.from({length:width},()=>[]);
+  const isTotalRow=i=>i>hr&&(/^\d+\s*(농가|명|건)$|^계$|^합계$/.test(norm(rows[i][nc]))||rows[i].slice(0,nc+1).some(c=>/^(계|합계)$/.test(norm(c))));
+  band.forEach(({i,carry})=>{let c="";const tot=isTotalRow(i);for(let j=0;j<width;j++){let v=rows[i][j]||"";
+    if(isNumCell(v)||/^\d+\s*(농가|명|건)$/.test(v)||(tot&&/^계$|^합계$/.test(norm(v))))v="";
+    if(carry){if(v)c=v;else if(rows[hr][j]||i<hr-0)v=c;}
+    if(v)parts[j].push(v);}});
+  const cols=parts.map((p,j)=>({j,s:norm(p[p.length-1]||""),g:norm(p.join(" ")),label:p.join(" › ")}));
+  const rank=c=>/세부|산출|인부임|재료비|자재|부가세/.test(c.g)?3:/완료|정산/.test(c.g)?0:/변경/.test(c.g)?1:2;
+  const byRank=list=>list.sort((a,b)=>rank(a)-rank(b)||b.j-a.j).map(c=>c.j);
+  const find=re=>cols.filter(c=>c.j!==nc&&re.test(c.s));
+  const prevIs=(c,re)=>cols[c.j-1]&&re.test(cols[c.j-1].s);
+  const C={
+    birth:find(/생년월일|주민/).filter(c=>!prevIs(c,/배우자/)).map(c=>c.j),
+    addr:find(/^주소|^도로명주소|^거주지/).map(c=>c.j),
+    tel:find(/연락처|전화|휴대/).map(c=>c.j),
+    site:byRank(find(/소재지|예정지|대상지|^지번$|사업장$/).filter(c=>!/개소|면적/.test(c.s))),
+    qty:byRank(find(/^사업량|^선정량|^신청량|^사업면적|^사업신청면적|^신청면적|^수량/)).concat(byRank(find(/사업량/))),
+    bank:find(/은행/).sort((a,b)=>(/전용|통장/.test(b.g)?1:0)-(/전용|통장/.test(a.g)?1:0)||a.j-b.j).map(c=>c.j),
+    acct:find(/계좌번호|^계좌$/).sort((a,b)=>(/전용|통장/.test(b.g)?1:0)-(/전용|통장/.test(a.g)?1:0)||a.j-b.j).map(c=>c.j),
+    status:[],
+    region:find(/읍면동$|^읍면$|^행정동$/).map(c=>c.j)
   };
-  const C={birth:pick(/생년월일|주민/),addr:pick(/^주소$|^주소지$/),tel:pick(/연락처|전화|휴대/),
-    site:pick(/소재지/),qty:pick(/사업량|수량/),total:pick(/^계$|총사업비|^사업비/),
-    sub:pick(/^보조/),self:pick(/^자부담/),bank:pick(/은행/),acct:pick(/계좌/)};
-  const unit=cols.some(c=>c.j!==nc&&/천원/.test(c.g))?"천원":"원";
-  const val=(r,list)=>{for(const j of list){const v=r[j];if(v!=null&&v!=="")return v}return ""};
+  // 진행상황: 제목이 맞는 열 중 실제 값에 선정·포기·지급 등이 들어 있는 열을 사용
+  const STV=/선정|포기|지급|교부|정산|후순위|탈락|취소|완료|요청|알림|확정|예정|제외/;
+  const stCand=cols.filter(c=>c.j!==nc&&(/진행상황|선정결과|선정여부|대상자선정|지급여부|추진상황|^상태$|^진행$/.test(c.s)||(c.j<nc&&/^구분$|^선정$|^결과$/.test(c.s))));
+  const stOk=stCand.find(c=>rows.slice(d0).some(r=>STV.test(r[c.j]||"")));
+  if(stOk)C.status=[stOk.j];
+  C.qty=[...new Set(C.qty)];
+  const qStrict=find(/^사업량|^선정량|^신청량|^사업면적|^사업신청면적|^신청면적|^수량/);
+  const qMulti=!qStrict.length?find(/사업량/):[];
+  const qtyOf=r=>{
+    if(qMulti.length>1)return qMulti.map(c=>{const v=String(r[c.j]||"").trim();return v?cols[c.j].s.replace(/사업량.*$/,"")+" "+v:""}).filter(Boolean).join(" / ");
+    return val(r,C.qty);
+  };
+  // 금액: "계·보조·자부담"이 붙어 있는 3칸 묶음을 찾고, 완료·정산 > 변경 > 오른쪽(나중 단계) 순으로 우선
+  const trip=[];
+  cols.forEach(c=>{
+    if(c.j===nc||!/^(계|합계|총사업비|사업비|총액)(\d+%)?$/.test(c.s))return;
+    if(!/사업비|교부|결정|완료|변경|정산|지급|보조금|금액|천원|원/.test(c.g+c.s))return;
+    const near=(re,max)=>cols.find(x=>x.j>c.j&&x.j<=c.j+max&&re.test(x.s));
+    const s=near(/^보조/,3),f=near(/^자부담|^자담|^자기부담|^융자|^자부/,4);
+    if(s&&f)trip.push({t:c.j,s:s.j,f:f.j,g:c.g,label:c.label,rank:rank(c)});
+  });
+  if(!trip.length){ // 국비·도비·시비 = 보조, 융자+자부담 = 자부담
+    cols.forEach(c=>{
+      if(c.j===nc||!/^(계|합계|총사업비|사업비)(\d+%)?$/.test(c.s))return;
+      const gov=cols.filter(x=>x.j>c.j&&x.j<=c.j+5&&/^(국비|도비|시비|지방비|군비)/.test(x.s)).map(x=>x.j);
+      const own=cols.filter(x=>x.j>c.j&&x.j<=c.j+6&&/^(자부담|자담|융자)/.test(x.s)).map(x=>x.j);
+      if(gov.length&&own.length)trip.push({t:c.j,s:gov,f:own,g:c.g,label:c.label+" (보조=국비·도비 합, 자부담=융자·자부담 합)",rank:rank(c)});
+    });
+  }
+  let single=null;
+  if(!trip.length)single=cols.find(c=>c.j!==nc&&/^(총사업비|사업비|계|합계)/.test(c.s)&&/사업비/.test(c.g));
+  trip.sort((a,b)=>a.rank-b.rank||b.t-a.t);
+  const cell=(r,x)=>Array.isArray(x)?fmt(x.reduce((a,j)=>a+num(r[j]),0)):String(r[x]||"").trim();
+  const unitOf=g=>/천원/.test(g)?"천원":/\(원\)|원\)|^원$|단위원/.test(g)?"원":"";
+  const head=rows.slice(0,d0).flat().join(" ");
+  const defUnit=/천원/.test(head)?"천원":"원";
+  const val=(r,list)=>{for(const j of list){const v=r[j];if(v!=null&&String(v).trim()!=="")return String(v).trim()}return ""};
   let title="";
-  for(let i=0;i<hr;i++){const c=rows[i].find(x=>x);if(c&&c.length>6&&!/번호/.test(c)){title=c;break;}}
+  for(let i=0;i<band[0].i;i++){const c=rows[i].find(x=>x&&x.length>4&&!/번호|단위|서식|【/.test(x));if(c){title=c;break;}}
   if(!title)title=sheetName;
-  const recs=[];let skipped=0;let declared=null;
+  const recs=[];let skipped=0;let declared=null;const units=new Set();
   for(let i=hr+1;i<rows.length;i++){
-    const r=rows[i];const v=r[nc]||"";
+    const r=rows[i];const v=(r[nc]||"").trim();
     if(!v){if(r.some(x=>x))skipped++;continue;}
     const m=v.match(/^(\d+)\s*(농가|명|건)$/);if(m){declared=+m[1];continue;}
-    if(SKIP_RE.test(v)){skipped++;continue;}
-    recs.push({name:v,birth:fmtBirth(val(r,C.birth)),addr:val(r,C.addr),tel:val(r,C.tel),site:val(r,C.site).replace(/\s+/g," "),
-      qty:val(r,C.qty),total:val(r,C.total),sub:val(r,C.sub),self:val(r,C.self),
-      acct:[val(r,C.bank),val(r,C.acct)].filter(Boolean).join(" ")});
+    if(!isName(v)){skipped++;continue;}
+    const tp=trip.find(t=>num(r[t.t])>0)||trip[0];
+    if(tp)units.add(unitOf(tp.g)||defUnit);else if(single)units.add(unitOf(single.g)||defUnit);
+    recs.push({row:i+1,name:v,birth:fmtBirth(val(r,C.birth)),addr:val(r,C.addr),tel:val(r,C.tel),site:val(r,C.site).replace(/\s+/g," "),
+      qty:qtyOf(r),total:tp?cell(r,tp.t):single?cell(r,single.j):"",sub:tp?cell(r,tp.s):"",self:tp?cell(r,tp.f):"",
+      acct:[val(r,C.bank),val(r,C.acct)].filter(Boolean).join(" "),
+      status:val(r,C.status).replace(/\s+/g," "),region:val(r,C.region)});
   }
-  const t=parseTitle(title);const name=t.name||title;
-  const mp=findMap(name);
-  return {id:Math.random().toString(36).slice(2),file:fileName,sheet:sheetName,title,year:t.year||String(new Date().getFullYear()),
+  const t=parseTitle(title);const t2=parseTitle(sheetName);
+  const name=t.name||t2.name||sheetName;
+  const year=t.year||t2.year||(String(fileName).match(/20\d{2}/)||[])[0]||String(new Date().getFullYear());
+  const mp=findMap(name)||findMap(sheetName);
+  recs.forEach(r=>{if(/^\d+$/.test(r.status))r.status="";});
+  const statuses=[...new Set(recs.map(r=>r.status).filter(Boolean))];
+  const regions=[...new Set(recs.map(r=>r.region).filter(Boolean))];
+  const home=(cfg.orgName.match(/^(.+?[읍면동])/)||[])[1]||"";
+  const L=j=>j==null?"":`${colName(j)}열 ${cols[j].label}`;
+  return {id:Math.random().toString(36).slice(2),file:fileName,sheet:sheetName,title,year,
     name,coverTitle:name+(/사업$/.test(name)?"":" 지원사업"),boxTitle:name+" 신청서"+(t.round?`(${t.round}차)`:""),
-    task:mp?mp.task:"",card:mp?mp.card:"",keep:mp?mp.keep:"",mapped:!!mp,unit,
-    found:Object.fromEntries(Object.entries(C).map(([k,v])=>[k,v.length>0])),
+    task:mp?mp.task:"",card:mp?mp.card:"",keep:mp?mp.keep:"",mapped:!!mp,
+    unit:units.size===1?[...units][0]:defUnit,mixedUnit:units.size>1,
+    found:{birth:!!C.birth.length,addr:!!C.addr.length,tel:!!C.tel.length,site:!!C.site.length,qty:!!C.qty.length,
+      total:!!(trip.length||single),sub:!!trip.length,self:!!trip.length,acct:!!C.acct.length},
+    colInfo:[["성명",L(nc)],["생년월일",L(C.birth[0])],["주소",L(C.addr[0])],["연락처",L(C.tel[0])],["사업소재지",L(C.site[0])],
+      ["사업량",qMulti.length>1?qMulti.map(c=>L(c.j)).join(" + "):L(C.qty[0])],["사업비(계·보조·자부담)",trip.length?`${colName(trip[0].t)}열 ${trip[0].label}${trip.length>1?` (외 ${trip.length-1}묶음, 비어 있으면 다음 묶음 사용)`:""}`:single?`${L(single.j)} (계만 있음, 보조·자부담 없음)`:""],
+      ["은행·계좌",[L(C.bank[0]),L(C.acct[0])].filter(Boolean).join(" / ")],["진행상황",L(C.status[0])],["읍면동",L(C.region[0])]],
+    statuses,exStatus:statuses.filter(s=>EXCL_STATUS.test(s)),
+    regions,inRegions:regions.length&&home&&regions.includes(home)?[home]:regions.slice(),
     recs,declared,skipped,include:true};
 }
+const active=p=>p.recs.filter(r=>(!r.status||!p.exStatus.includes(r.status))&&(!p.regions.length||!r.region||p.inRegions.includes(r.region)));
 
 async function readFiles(files){
-  const out=[];const errs=[];
+  const out=[];const errs=[];const skippedSheets=[];
   for(const f of files){
     try{
-      const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});
+      const wb=XLSX.read(await f.arrayBuffer(),{type:"array",cellDates:true,dateNF:"yyyy.mm.dd"});
       for(const sn of wb.SheetNames){
-        const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:false,defval:""});
+        const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:false,defval:"",dateNF:"yyyy.mm.dd"});
         const p=sheetToProject(rows,sn,f.name);
-        if(p&&p.recs.length)out.push(p);
+        if(p&&p.recs.length)out.push(p);else if(rows.length)skippedSheets.push(sn);
       }
     }catch(e){errs.push(f.name+": "+e.message)}
   }
   if(!out.length){alert("성명 열을 찾지 못했습니다. 헤더에 '성명' 칸이 있는 명단인지 확인하세요."+(errs.length?"\n"+errs.join("\n"):""));return;}
-  projects=out;$("sampleBanner").hidden=true;render();
+  // 같은 농가 목록을 가진 시트(예: 본 명단과 세부내역)는 뒤 시트를 전체 인쇄에서 뺀다
+  out.forEach((p,i)=>{const k=active(p).map(r=>r.name).join("|");const d=k&&out.slice(0,i).find(q=>q.year===p.year&&active(q).map(r=>r.name).join("|")===k);if(d){p.include=false;p.dupOf=d.sheet;}});
+  projects=out;sel=out[0].id;$("sampleBanner").hidden=true;
+  $("skipNote").hidden=!skippedSheets.length;$("skipNote").textContent=skippedSheets.length?`명단을 찾지 못해 제외한 시트: ${skippedSheets.join(", ")}`:"";
+  render();
 }
 
 // ---------- 농가 목록·상자 묶음 (명단 순서 유지) ----------
-function farms(){const a=[];projects.filter(p=>p.include).forEach(p=>p.recs.forEach((r,i)=>a.push({p,r,i})));return a}
+let sel="all";
+const scope=()=>sel==="all"?projects.filter(p=>p.include):projects.filter(p=>p.id===sel);
+function farms(){const a=[];scope().forEach(p=>active(p).forEach((r,i)=>a.push({p,r,i})));return a}
 function boxes(){
   const out=[];const per=+cfg.perBox>0?+cfg.perBox:Infinity;let cur=null;
   farms().forEach(f=>{
@@ -302,29 +409,49 @@ function boxFiles(b){ // 상자 안 기록물철을 사업별로 묶어 "철명 
 
 // ---------- 검증 ----------
 function checks(p){
-  const c=[{t:`${p.recs.length}농가`,k:""}];
-  if(p.declared!=null&&p.declared!==p.recs.length)c.push({t:`합계행 ${p.declared}농가와 불일치`,k:"bad"});
+  const A=active(p);
+  const c=[{t:`출력 ${A.length}농가 / 명단 ${p.recs.length}농가`,k:A.length?"":"bad"}];
+  if(p.declared!=null&&p.declared!==p.recs.length&&p.declared!==A.length)c.push({t:`엑셀 합계행 ${p.declared}농가`,k:"warn"});
   if(!p.task)c.push({t:"단위과제 미지정",k:"bad"});
   if(!p.keep)c.push({t:"보존기간 미지정",k:"bad"});
   if(!/^20\d{2}$/.test(p.year))c.push({t:"생산연도 확인",k:"bad"});
-  const seen={},dup=[];p.recs.forEach(r=>{if(seen[r.name])dup.push(r.name);seen[r.name]=1});
+  const seen={},dup=[];A.forEach(r=>{if(seen[r.name])dup.push(r.name);seen[r.name]=1});
   if(dup.length)c.push({t:"중복 성명: "+[...new Set(dup)].join(", "),k:"warn"});
-  const miss={birth:"생년월일",addr:"주소",tel:"연락처",site:"사업소재지",qty:"사업량",total:"총사업비",sub:"보조금",self:"자부담",acct:"계좌번호"};
+  const miss={birth:"생년월일",tel:"연락처",qty:"사업량",total:"사업비",acct:"계좌번호"};
   const m=Object.keys(miss).filter(k=>!p.found[k]).map(k=>miss[k]);
-  if(m.length)c.push({t:"열 못 찾음: "+m.join(", "),k:"warn"});
-  const s=p.recs.reduce((a,r)=>a+Math.abs(num(r.total)-num(r.sub)-num(r.self)),0);
-  if(p.found.total&&p.found.sub&&p.found.self&&s>0.5)c.push({t:"총사업비 ≠ 보조+자부담 행 있음",k:"bad"});
-  if(p.skipped)c.push({t:`빈·합계 행 ${p.skipped}개 제외`,k:"warn"});
+  if(!p.found.site&&!p.found.addr)m.push("소재지·주소");
+  if(m.length)c.push({t:"열 없음: "+m.join(", "),k:"warn"});
+  const bad=A.filter(r=>r.total&&(r.sub||r.self)&&Math.abs(num(r.total)-num(r.sub)-num(r.self))>0.5);
+  if(bad.length)c.push({t:`총사업비≠보조+자부담 ${bad.length}건(${bad.slice(0,3).map(r=>r.name).join(", ")}${bad.length>3?" 등":""})`,k:"bad"});
+  const empty=A.filter(r=>!r.total).length;
+  if(p.found.total&&empty)c.push({t:`사업비 빈칸 ${empty}건`,k:"warn"});
+  if(p.found.total&&!p.found.sub)c.push({t:"보조·자부담 구분 열 없음(계만 표시)",k:"warn"});
+  if(p.mixedUnit)c.push({t:"금액 단위 혼재(원/천원)",k:"bad"});
+  if(p.dupOf)c.push({t:`'${p.dupOf}' 시트와 농가 동일 → 전체 인쇄에서 제외함`,k:"warn"});
   if(p.mapped)c.push({t:"연계표 자동 적용",k:""});
   return c;
 }
+const level=p=>{const c=checks(p);return c.some(x=>x.k==="bad")?"bad":c.some(x=>x.k==="warn")?"warn":"ok"};
 
-// ---------- 입력 패널 ----------
+// ---------- 시트 목록·입력 패널 ----------
+function renderSheets(){
+  const inc=projects.filter(p=>p.include);
+  const total=inc.reduce((a,p)=>a+active(p).length,0);
+  $("sheetList").innerHTML=`<button class="sheet-btn${sel==="all"?" on":""}" data-sel="all"><span class="nm">전체 (출력 체크한 시트)</span><span class="ct">${inc.length}개 시트 · ${total}농가</span></button>`+
+    projects.map(p=>`<div class="sheet-row${sel===p.id?" on":""}">
+      <input type="checkbox" data-inc="${p.id}" ${p.include?"checked":""} aria-label="${esc(p.sheet)} 출력 포함">
+      <button class="sheet-btn" data-sel="${p.id}"><span class="dot ${level(p)}"></span><span class="nm">${esc(p.sheet)}</span><span class="ct">${active(p).length}/${p.recs.length}</span></button></div>`).join("");
+}
 function renderProjects(){
-  $("projects").innerHTML=projects.map(p=>`
+  renderSheets();
+  const p=projects.find(x=>x.id===sel);
+  if(!p){$("projects").innerHTML=`<p class="hint" style="margin:0">왼쪽 시트를 누르면 해당 사업의 설정·대상 농가를 관리할 수 있습니다. "전체"에서는 체크한 시트를 모두 합쳐 인쇄합니다.</p>`;return;}
+  const chk=(list,on,key)=>list.map(v=>`<label class="opt"><input type="checkbox" data-${key}="${esc(v)}" ${on(v)?"checked":""}>${esc(v)} <small>${p.recs.filter(r=>(key==="st"?r.status:r.region)===v).length}</small></label>`).join("");
+  $("projects").innerHTML=`
   <div class="proj" data-id="${p.id}">
     <header><span>${esc(p.file?p.file+" › ":"")}${esc(p.sheet)}</span>
-      <label class="row" style="font-size:12px;gap:4px"><input type="checkbox" data-k="include" ${p.include?"checked":""}>출력</label></header>
+      <label class="row" style="font-size:12px;gap:4px"><input type="checkbox" data-k="include" ${p.include?"checked":""}>전체 인쇄에 포함</label></header>
+    <div class="chips">${checks(p).map(c=>`<span class="chip ${c.k}">${esc(c.t)}</span>`).join("")}</div>
     <label class="f">표지 기록물철명 (뒤에 "(농가명)"이 자동으로 붙음)<input type="text" data-k="coverTitle" value="${esc(p.coverTitle)}"></label>
     <label class="f">상자 라벨·색인목록 철명<input type="text" data-k="boxTitle" value="${esc(p.boxTitle)}"></label>
     <div class="grid3">
@@ -336,14 +463,20 @@ function renderProjects(){
       <label class="f">생산연도<input type="text" data-k="year" value="${esc(p.year)}"></label>
       <label class="f" style="grid-column:span 2">사업명(연계표 검색 기준)<input type="text" data-k="name" value="${esc(p.name)}"></label>
     </div>
-    <div class="chips">${checks(p).map(c=>`<span class="chip ${c.k}">${esc(c.t)}</span>`).join("")}</div>
-  </div>`).join("");
+    ${p.regions.length?`<div class="filt"><b>읍면동</b> ${chk(p.regions,v=>p.inRegions.includes(v),"rg")}</div>`:""}
+    ${p.statuses.length?`<div class="filt"><b>진행상황</b> (체크 해제 = 인쇄 제외) ${chk(p.statuses,v=>!p.exStatus.includes(v),"st")}</div>`:""}
+    <details><summary>열 인식 결과 확인</summary><table class="map" style="margin-top:6px">${p.colInfo.map(([k,v])=>`<tr><th style="width:30%;text-align:left">${esc(k)}</th><td>${v?esc(v):'<span style="color:var(--warn)">없음</span>'}</td></tr>`).join("")}<tr><th style="text-align:left">금액 단위</th><td>${esc(p.unit)}</td></tr></table></details>
+  </div>`;
 }
 function onProjInput(e){
   const box=e.target.closest(".proj");if(!box)return;
-  const p=projects.find(x=>x.id===box.dataset.id);const k=e.target.dataset.k;if(!p||!k)return;
-  if(k==="include")p.include=e.target.checked;else p[k]=e.target.value;
-  if(k==="name"&&e.type==="change"){const mp=findMap(p.name);if(mp){p.task=mp.task;p.card=mp.card;p.keep=mp.keep;p.mapped=true;}else p.mapped=false;}
+  const p=projects.find(x=>x.id===box.dataset.id);if(!p)return;
+  const d=e.target.dataset;
+  if(d.st!=null){if(e.type!=="change")return;p.exStatus=e.target.checked?p.exStatus.filter(x=>x!==d.st):[...p.exStatus,d.st];}
+  else if(d.rg!=null){if(e.type!=="change")return;p.inRegions=e.target.checked?[...p.inRegions,d.rg]:p.inRegions.filter(x=>x!==d.rg);}
+  else if(d.k==="include")p.include=e.target.checked;
+  else if(d.k)p[d.k]=e.target.value;else return;
+  if(d.k==="name"&&e.type==="change"){const mp=findMap(p.name);if(mp){p.task=mp.task;p.card=mp.card;p.keep=mp.keep;p.mapped=true;}else p.mapped=false;}
   if(e.type==="change")renderProjects();
   renderPreview();
 }
@@ -354,7 +487,7 @@ function renderMap(){
     <td><button class="sm" data-del="${i}" aria-label="삭제">×</button></td></tr>`).join("");
 }
 function reapplyMap(){
-  projects.forEach(p=>{const mp=findMap(p.name);if(mp){p.task=mp.task;p.card=mp.card;p.keep=mp.keep;p.mapped=true;}});
+  projects.forEach(p=>{const mp=findMap(p.name)||findMap(p.sheet);if(mp){p.task=mp.task;p.card=mp.card;p.keep=mp.keep;p.mapped=true;}});
   renderProjects();renderPreview();
 }
 
@@ -443,6 +576,8 @@ function render(){renderProjects();renderPreview();}
   const el=$(k);el.value=cfg[k];
   el.addEventListener("input",()=>{cfg[k]=el.value;store.set("rlv2.cfg",cfg);renderPreview();});
 });
+$("sheetList").addEventListener("click",e=>{const b=e.target.closest("[data-sel]");if(!b)return;sel=b.dataset.sel;renderProjects();renderPreview();});
+$("sheetList").addEventListener("change",e=>{const id=e.target.dataset.inc;if(!id)return;const p=projects.find(x=>x.id===id);p.include=e.target.checked;renderProjects();renderPreview();});
 $("projects").addEventListener("input",onProjInput);
 $("projects").addEventListener("change",onProjInput);
 $("mapBody").addEventListener("input",e=>{const tr=e.target.closest("tr");const k=e.target.dataset.k;if(!tr||!k)return;map[+tr.dataset.i][k]=e.target.value;store.set("rlv2.map",map);});
@@ -463,7 +598,7 @@ drop.ondragleave=()=>drop.classList.remove("over");
 drop.ondrop=e=>{e.preventDefault();drop.classList.remove("over");if(e.dataTransfer.files.length)readFiles([...e.dataTransfer.files]);};
 
 renderMap();
-projects=[sheetToProject(SAMPLE_ROWS,"예시","")];
+projects=[sheetToProject(SAMPLE_ROWS,"예시","")];sel=projects[0].id;
 render();
 </script>
 </body>
