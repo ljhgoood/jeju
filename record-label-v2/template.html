@@ -145,7 +145,7 @@ table.map input{border:0;padding:3px 4px;font-size:12px}
       <summary>출력 설정</summary>
       <div style="display:grid;gap:8px;margin-top:8px">
         <div class="grid3">
-          <label class="f">상자당 최대 농가 수(0=제한 없음)<input type="number" id="perBox" min="0"></label>
+          <label class="f">상자 라벨 1개당 농가 수(0=나누지 않음)<input type="number" id="perBox" min="0"></label>
           <label class="f">표지 위치(원본 1~3번째 칸)<input type="number" id="startAt" min="1" max="3"></label>
           <label class="f">상자 라벨 시작 칸(1~4)<input type="number" id="boxStart" min="1" max="4"></label>
         </div>
@@ -199,7 +199,7 @@ const DEFAULT_MAP=[
   {kw:"비닐하우스|채소화훼",task:"채소화훼경쟁력제고",card:"",keep:"5년"},
   {kw:"농지취득",task:"농지취득자격증명발급",card:"",keep:""}
 ];
-const DEFAULT_CFG={orgCode:"6520032",orgName:"표선면사무소",dept:"표선면(산업팀)",perBox:0,startAt:1,boxStart:1,dx:0,dy:0};
+const DEFAULT_CFG={orgCode:"6520032",orgName:"표선면사무소",dept:"표선면(산업팀)",perBox:5,startAt:1,boxStart:1,dx:0,dy:0};
 const SAMPLE_ROWS=[
   ["2026년 과수·과채류 하우스 재난방지시스템 사업완료내역(표선면 1차)"],
   ["번호","읍면동","사업농가","","","","사업 내용","","","교부결정 내역(천원)","","","사업완료 내역(천원)","","","","","통장내역","",""],
@@ -214,6 +214,7 @@ const $=id=>document.getElementById(id);
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},
              set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 let cfg=Object.assign({},DEFAULT_CFG,store.get("rlv2.cfg",{}));
+if(!cfg.perBoxV){cfg.perBox=5;cfg.perBoxV=1;store.set("rlv2.cfg",cfg);} // 상자당 5농가 기본값 적용(이전 저장값 0 대체)
 let map=store.get("rlv2.map",null)||DEFAULT_MAP.map(m=>({...m}));
 let projects=[]; let tab="cover"; let boxNos=store.get("rlv2.boxNos",{});
 
@@ -234,7 +235,7 @@ function parseTitle(t){
   const ym=title.match(/(20\d{2}|\d{2})\s*년/);const y=ym?(ym[1].length===2?"20"+ym[1]:ym[1]):"";
   const round=(title.match(/(\d+)\s*차/)||[])[1]||"";
   let name=title.replace(/(20\d{2}|\d{2})\s*년(도)?/,"").replace(/[(（][^)）]*[)）]/g,"").replace(/[(（][^)）]*$/,"").replace(/[【\[].*?[】\]]/g,"").trim();
-  for(let k=0;k<3;k++)name=name.replace(/\s*(대상자)?\s*(추가)?\s*(선정|확정|신청|완료|교부|정산|지급)?\s*(내역|명단|현황|대장|관리카드)\s*$/,"").replace(/\s*대상자\s*$/,"").trim();
+  for(let k=0;k<3;k++)name=name.replace(/\s*(대상자)?\s*(추가)?\s*(선정|확정|신청|완료|교부|정산|지급)?\s*(내역|명단|현황|대장|관리카드)\s*$/,"").replace(/\s*대상자\s*$/,"").replace(/\s+사업$/,"").trim(); // "…시스템 사업완료내역" → "…시스템" ("지원사업"은 유지)
   return {year:y,round,name};
 }
 const NAME_KEYS=["성명","농가명","사업자명","대표자","신청인","신청자","성명대표자","농가성명","대표자성명"];
@@ -396,7 +397,8 @@ function boxes(){
   const out=[];const per=+cfg.perBox>0?+cfg.perBox:Infinity;let cur=null;
   farms().forEach(f=>{
     const k=f.p.year+"|"+f.p.task+"|"+f.p.keep;
-    if(!cur||cur.k!==k||cur.items.length>=per){cur={k,p:f.p,items:[]};out.push(cur);}
+    // 단위과제가 바뀌거나, 농가 수 단위로 나눌 때 사업(시트)이 바뀌거나, 정해진 농가 수가 차면 새 상자
+    if(!cur||cur.k!==k||cur.items.length>=per||(per!==Infinity&&cur.p!==f.p)){cur={k,p:f.p,items:[]};out.push(cur);}
     cur.items.push(f);
   });
   const cnt={};out.forEach(b=>{cnt[b.k]=(cnt[b.k]||0)+1;b.seq=cnt[b.k];});
@@ -538,7 +540,7 @@ function renderIndex(rowsPer=INDEX_ROWS){
 
 function renderBoxes(){
   const bx=boxes();const items=[];for(let i=1;i<Math.min(4,+cfg.boxStart||1);i++)items.push(null);bx.forEach(b=>items.push(b));
-  $("tabHint").textContent=`상자 라벨 ${bx.length}개 · A4 한 장에 4개(93.1×92.0mm, 원본 세로의 80%) · 상자번호 칸을 클릭해 입력`;
+  $("tabHint").textContent=`상자 라벨 ${bx.length}개(${+cfg.perBox>0?`${+cfg.perBox}농가마다 1개`:"나누지 않음"}) · A4 한 장에 4개씩, 인쇄 ${Math.ceil(items.length/4)}쪽 · 93.1×92.0mm · 상자번호 칸을 클릭해 입력`;
   return chunk(items,4).map(pg=>`<div class="sheet" style="${sheetStyle()}">${pg.map((b,i)=>{
     if(!b)return "";
     const files=boxFiles(b);const lines=files.length*2;
